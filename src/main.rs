@@ -1,19 +1,57 @@
+use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(PartialEq, Eq, Hash)]
 struct Vertex {
     name : String,
+    distance: f64,
 }
 
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.distance < other.distance {
+            Ordering::Less
+        } else if self.distance > other.distance {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
+}
+
+impl PartialOrd for Vertex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Vertex {}
+
 struct Edge {
-    p0 : Rc<Vertex>,
-    p1 : Rc<Vertex>,
+    p0 : Rc<RefCell<Vertex>>,
+    p1 : Rc<RefCell<Vertex>>,
     distance: f32,
 }
 
+impl Edge {
+    fn other_vert(&self, vertex: Rc<RefCell<Vertex>>) -> Rc<RefCell<Vertex>> {
+        if self.p0.borrow().name == vertex.borrow().name {
+            self.p1.clone()
+        } else {
+            self.p0.clone()
+        }
+    }
+}
+
 struct MapGraph {
-    vertices: HashMap<String, Rc<Vertex>>,
+    vertices: HashMap<String, Rc<RefCell<Vertex>>>,
     edges: HashMap<(String, String), Rc<Edge>>,
 }
 
@@ -26,11 +64,13 @@ impl MapGraph {
         for i in 0..verts.len() {
             println!("{}", verts[i]);
 
-            let v: Rc<Vertex> = Vertex {
+            let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex {
                 name: String::from(verts[i]),
-            }.into();
+                distance: 99999999999.9
+            }).into();
+            let name = v.borrow_mut().name.clone();
 
-            self.vertices.insert(v.name.clone(), v);
+            self.vertices.insert(name, v);
         }
     }
 
@@ -49,16 +89,47 @@ impl MapGraph {
         }
     }
 
-    fn find_edges(self, name: String) -> Vec<Rc<Edge>> {
+    fn find_edges(&self, name: &String) -> Vec<Rc<Edge>> {
         let mut v: Vec<Rc<Edge>> = Vec::new();
 
         for (_, e) in self.edges.iter() {
-            if e.p0.name == name || e.p1.name == name {
+            if e.p0.borrow().name == *name || e.p1.borrow().name == *name {
                 v.push(e.clone());
             }
         }
 
         v
+    }
+
+    fn shortest_path(&mut self, start: String, finish: String) {
+        let start_v = self.vertices.get(&start).
+            expect("Couldn't find the starting vertex");
+        let end_v = self.vertices.get(&finish).
+            expect("Couldn't find the ending vertex");
+
+        let mut unvisited: Vec<Rc<RefCell<Vertex>>> = Vec::new();
+        for (_, v) in self.vertices.iter() {
+            v.borrow_mut().distance = 999999999999.9;
+            unvisited.push(v.clone());
+        }
+        start_v.borrow_mut().distance = 0.0;
+
+        unvisited.sort();
+        for _i in 0..unvisited.len() {
+            let v = unvisited.remove(0);
+            if v == *end_v {break;}
+            let edges = self.find_edges(&v.borrow().name);
+            for e in edges.iter() {
+                let v_other = e.other_vert(v.clone());
+                let new_dist = v.borrow().distance + f64::from(e.distance);
+                if v_other.borrow().distance > new_dist {
+                    v_other.borrow_mut().distance = new_dist;
+                }
+            }
+            unvisited.sort();
+        }
+        
+        println!("Distance is {}", end_v.borrow().distance);
     }
 }
 
@@ -72,8 +143,5 @@ fn main() {
     graph.insert_vertices(&input_verts);
     graph.insert_edges(&input_edges);
 
-    let list = graph.find_edges("C".to_string());
-    for e in list.iter() {
-        println!("Lengths are {}", e.distance);
-    }
+    graph.shortest_path("A".to_string(), "B".to_string());
 }
