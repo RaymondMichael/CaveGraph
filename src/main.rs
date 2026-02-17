@@ -14,7 +14,7 @@ struct Edge {
 
 struct MapGraph {
     vertices: HashMap<String, Rc<Vertex>>,
-    edges: HashMap<(String, String), Edge>,
+    edges: HashMap<(String, String), Rc<Edge>>,
 }
 
 impl MapGraph {
@@ -45,8 +45,20 @@ impl MapGraph {
                 expect("Couldn't find the second vertex");
 
             let e = Edge {p0: v0.clone(), p1: v1.clone(), distance: d};
-            self.edges.insert((p0.to_string(), p1.to_string()), e);
+            self.edges.insert((p0.to_string(), p1.to_string()), e.into());
         }
+    }
+
+    fn find_edges(self, name: String) -> Vec<Rc<Edge>> {
+        let mut v: Vec<Rc<Edge>> = Vec::new();
+
+        for (_, e) in self.edges.iter() {
+            if e.p0.name == name || e.p1.name == name {
+                v.push(e.clone());
+            }
+        }
+
+        v
     }
 }
 
@@ -60,10 +72,8 @@ fn main() {
     graph.insert_vertices(&input_verts);
     graph.insert_edges(&input_edges);
 
-    for (_, e) in graph.edges.iter() {
-        println!("Edge {} {} is {}",
-                 e.p0.name, e.p1.name, e.distance);
+    let list = graph.find_edges("C".to_string());
+    for e in list.iter() {
+        println!("Lengths are {}", e.distance);
     }
-
-    
 }
