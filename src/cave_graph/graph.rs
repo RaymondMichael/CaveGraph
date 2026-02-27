@@ -132,10 +132,10 @@ impl MapGraph {
         v
     }
 
-    pub fn shortest_path(&mut self, start: String, finish: String) -> f64 {
-        let start_v = self.vertices.get(&start).
+    pub fn shortest_path(&mut self, start: &String, finish: &String) -> f64 {
+        let start_v = self.vertices.get(start).
             expect("Couldn't find the starting vertex");
-        let end_v = self.vertices.get(&finish).
+        let end_v = self.vertices.get(finish).
             expect("Couldn't find the ending vertex");
 
         let mut unvisited: Vec<Rc<RefCell<Vertex>>> = Vec::new();

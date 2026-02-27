@@ -11,6 +11,6 @@ fn main() {
     graph.insert_vertices(&input_verts);
     graph.insert_edges(&input_edges);
 
-    let distance = graph.shortest_path("A".to_string(), "B".to_string());
+    let distance = graph.shortest_path(&"A".to_string(), &"B".to_string());
     println!("Shortest distance is {}", distance);
 }
