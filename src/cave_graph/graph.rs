@@ -72,7 +72,7 @@ struct Edge {
 }
 
 impl Edge {
-    fn other_vert(&self, vertex: Rc<RefCell<Vertex>>) -> Rc<RefCell<Vertex>> {
+    fn other_vert(&self, vertex: &Rc<RefCell<Vertex>>) -> Rc<RefCell<Vertex>> {
         if self.p0.borrow().name == vertex.borrow().name {
             self.p1.clone()
         } else {
@@ -151,7 +151,7 @@ impl MapGraph {
             if v == *end_v {break;}
             let edges = self.find_edges(&v.borrow().name);
             for e in edges.iter() {
-                let v_other = e.other_vert(v.clone());
+                let v_other = e.other_vert(&v);
                 let new_dist = v.borrow().distance + f64::from(e.distance);
                 if v_other.borrow().distance > new_dist {
                     v_other.borrow_mut().distance = new_dist;
