@@ -1,0 +1,26 @@
+encoding  utf-8
+
+survey d
+
+#        input d.th2
+#        map dMP
+#          dSP1
+#        endmap
+        
+ 
+centerline
+       date 2023.04.08
+       units clino compass degrees
+       units length depth feet
+       team "Michael Raymond" pics
+
+       data normal from to length compass clino left right up down
+
+       d1 d2 8.0 225.0 0.0 0 3 8 14
+       d2 d3 14.0 0.0 -89.9 10 6 22 0
+       d3 d4 25.0 135.0 0.0 4 4 3 0
+       d4 d5 10.0 245.0 30.0 3 3 10 4
+
+endcenterline
+
+endsurvey

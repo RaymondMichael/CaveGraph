@@ -1,3 +1,5 @@
+use shortest_path::cave_graph::cave;
+use shortest_path::cave_graph::cave::Cave;
 use shortest_path::cave_graph::graph::MapGraph;
 
 fn main() {
@@ -13,4 +15,10 @@ fn main() {
 
     let distance = graph.shortest_path(&"A".to_string(), &"B".to_string());
     println!("Shortest distance is {}", distance);
+
+    let mut cave = Cave::new();
+    cave::therion_reader::read_therion(
+        //        &mut cave, &"".to_string(), &"data/Deep_Lake/deep_lake.th".to_string());
+                &mut cave, &"".to_string(), &"HMaze.th".to_string());
+    cave.print();
 }

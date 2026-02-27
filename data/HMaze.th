@@ -1,0 +1,265 @@
+encoding utf-8
+# 2026.02.15 created by TopoDroid v 6.3.20
+
+survey HMaze -title "Hosken's Maze Pg 5 of 6"
+
+  # input "HMaze-1p.th2"
+  # input "HMaze-1s.th2"
+  # input "HMaze-2p.th2"
+  # input "HMaze-2s.th2"
+  # input "HMaze-xs-M4.th2"
+   input "HMaze-3p.th2"
+  # input "HMaze-3s.th2"
+  # input "HMaze-4p.th2"
+  # input "HMaze-4s.th2"
+
+  # map m1p -projection plan
+  #  HMaze-1p
+  # endmap
+  # map m1s -projection extended
+  #  HMaze-1s
+  # endmap
+  # map m2p -projection plan
+  #  HMaze-2p
+  # endmap
+  # map m2s -projection extended
+  #   HMaze-2s
+  # endmap
+   map m3p -projection plan
+    HMaze-3p
+  endmap
+  # map m3s -projection extended
+  #   HMaze-3s
+  # endmap
+  # map m4p -projection plan
+  #  HMaze-4p
+  # endmap
+  # map m4s -projection extended
+  #   HMaze-4s
+  # endmap
+
+  centerline
+    date 2026.02.14 
+    # team us 
+    units length feet
+    units compass clino degrees
+    data normal from to length compass clino
+    extend left
+    M1 K0 22.30 163.1 -13.6
+    # extend auto
+    M1 - 3.00 252.9 0.0
+    M1 - 2.30 72.9 0.0
+    extend vertical
+    M1 - 6.00 0.0 90.0
+    M1 - 1.00 0.0 -90.0
+    extend right
+    K0 M1 22.70 342.9 13.6
+    extend left
+    M2 M1 8.30 6.3 -28.5
+    # extend auto
+    M2 - 1.50 97.3 0.0
+    M2 - 4.00 277.3 0.0
+    extend vertical
+    M2 - 2.00 0.0 90.0
+    M2 - 3.00 0.0 -90.0
+    extend right
+    M1 M2 8.30 187.3 28.0
+    M2 . 12.70 167.7 2.3
+    extend left
+    M3 M2 13.50 34.7 -9.3
+    # extend auto
+    M3 - 2.00 125.2 0.0
+    M3 - 2.50 305.2 0.0
+    extend vertical
+    M3 - 0.00 0.0 90.0
+    M3 - 2.00 0.0 -90.0
+    extend right
+    M2 M3 13.00 215.2 9.5
+    M3 . 6.00 230.6 -2.0
+    extend left
+    M4 M1 14.40 213.1 -16.8
+    # extend auto
+    M4 - 1.60 303.3 0.0
+    M4 - 2.00 123.3 0.0
+    extend vertical
+    M4 - 2.00 0.0 90.0
+    M4 - 3.00 0.0 -90.0
+    extend right
+    M1 M4 14.30 33.3 16.0
+    extend left
+    M5 M4 9.50 200.9 -11.3
+    # extend auto
+    M5 - 1.00 290.6 0.0
+    M5 - 3.00 110.6 0.0
+    extend vertical
+    M5 - 12.00 0.0 90.0
+    M5 - 2.30 0.0 -90.0
+    extend right
+    M4 M5 9.50 20.6 11.5
+    extend left
+    M6 M5 13.30 40.6 -26.1
+    # extend auto
+    M6 - 1.00 130.9 0.0
+    M6 - 0.00 310.9 0.0
+    extend vertical
+    M6 - 6.00 0.0 90.0
+    M6 - 6.00 0.0 -90.0
+    extend right
+    M5 M6 13.40 220.9 26.1
+    extend left
+    M7 M6 19.10 31.0 -2.9
+    # extend auto
+    M7 - 0.00 121.0 0.0
+    M7 - 2.00 301.0 0.0
+    extend vertical
+    M7 - 5.50 0.0 90.0
+    M7 - 5.00 0.0 -90.0
+    extend right
+    M6 M7 18.90 211.0 2.5
+    extend left
+    M8 M7 9.90 44.2 -16.8
+    # extend auto
+    M8 - 4.00 133.7 0.0
+    M8 - 4.00 313.7 0.0
+    extend vertical
+    M8 - 2.30 0.0 90.0
+    M8 - 5.00 0.0 -90.0
+    extend right
+    M7 M8 10.10 223.7 17.3
+    extend left
+    M9 M8 20.90 28.3 -5.5
+    # extend auto
+    M9 - 3.00 118.2 0.0
+    M9 - 3.00 298.2 0.0
+    extend vertical
+    M9 - 0.00 0.0 90.0
+    M9 - 2.00 0.0 -90.0
+    extend right
+    M8 M9 21.10 208.2 5.7
+    extend left
+    M10 M5 11.30 178.4 -66.0
+    # extend auto
+    M10 - 8.00 268.1 0.0
+    M10 - 17.00 88.1 0.0
+    extend vertical
+    M10 - 2.00 0.0 90.0
+    M10 - 12.00 0.0 -90.0
+    extend right
+    M5 M10 11.40 358.1 65.5
+    extend left
+    M11 M10 17.40 303.7 -13.6
+    # extend auto
+    M11 - 0.00 32.7 0.0
+    M11 - 8.00 212.7 0.0
+    extend vertical
+    M11 - 8.00 0.0 90.0
+    M11 - 3.50 0.0 -90.0
+    extend right
+    M10 M11 17.40 122.7 13.6
+    extend left
+    M12 M11 8.30 49.0 2.3
+    # extend auto
+    M12 - 1.00 139.7 0.0
+    M12 - 0.00 319.7 0.0
+    extend vertical
+    M12 - 8.00 0.0 90.0
+    M12 - 3.00 0.0 -90.0
+    extend right
+    M11 M12 8.20 229.7 -2.8
+    extend left
+    M13 M12 9.30 21.7 -16.3
+    # extend auto
+    M13 - 0.00 111.7 0.0
+    M13 - 7.00 291.7 0.0
+    extend vertical
+    M13 - 7.00 0.0 90.0
+    M13 - 4.00 0.0 -90.0
+    extend right
+    M12 M13 9.40 201.7 16.2
+    extend left
+    M14 M13 7.70 71.3 -2.0
+    # extend auto
+    M14 - 0.00 160.7 0.0
+    M14 - 2.00 340.7 0.0
+    extend vertical
+    M14 - 1.70 0.0 90.0
+    M14 - 5.50 0.0 -90.0
+    extend right
+    M13 M14 7.70 250.7 1.9
+    extend left
+    M15 M14 8.30 157.2 -0.3
+    # extend auto
+    M15 - 2.30 247.7 0.0
+    M15 - 0.00 67.7 0.0
+    extend vertical
+    M15 - 1.50 0.0 90.0
+    M15 - 6.30 0.0 -90.0
+    extend right
+    M14 M15 8.20 337.7 0.0
+    extend left
+    M16 M15 8.70 99.7 -1.6
+    # extend auto
+    M16 - 2.00 190.7 0.0
+    M16 - 0.00 10.7 0.0
+    extend vertical
+    M16 - 2.00 0.0 90.0
+    M16 - 5.00 0.0 -90.0
+    extend right
+    M15 M16 8.70 280.7 1.1
+    extend left
+    M17 M13 6.40 353.5 -7.8
+    # extend auto
+    M17 - 1.00 83.2 0.0
+    M17 - 5.00 263.2 0.0
+    extend vertical
+    M17 - 6.00 0.0 90.0
+    M17 - 4.00 0.0 -90.0
+    extend right
+    M13 M17 6.50 173.2 8.2
+    extend left
+    M18 M17 5.80 47.7 -3.3
+    # extend auto
+    M18 - 1.00 138.7 0.0
+    M18 - 0.00 318.7 0.0
+    extend vertical
+    M18 - 5.00 0.0 90.0
+    M18 - 5.00 0.0 -90.0
+    extend right
+    M17 M18 5.60 228.7 2.8
+    extend left
+    M18 . 12.70 191.3 -1.4
+    extend vertical
+    M19 M13 6.60 344.5 -85.1
+    M13 M19 6.60 155.5 84.2
+    M20 M19 5.70 85.2 -3.0
+    # extend auto
+    M20 - 25.00 176.0 0.0
+    M20 - 30.00 356.0 0.0
+    extend vertical
+    M20 - 2.00 0.0 90.0
+    M20 - 0.50 0.0 -90.0
+    M19 M20 5.70 266.0 2.9
+    units left right up down feet
+    data dimensions station left right up down
+    M1 2.30 3.00 3.00 1.00
+    M2 4.00 4.05 4.05 3.00
+    M3 2.50 2.00 2.00 2.00
+    M4 2.00 1.60 1.60 3.00
+    M5 3.00 1.00 1.00 2.30
+    M6 0.00 1.00 1.00 6.00
+    M7 2.00 0.00 0.00 5.00
+    M20 30.00 25.00 25.00 0.50
+    M8 4.00 4.00 4.00 5.00
+    M9 3.00 3.00 3.00 2.00
+    M11 8.00 0.00 0.00 3.50
+    M10 17.00 8.00 8.00 12.00
+    M13 7.00 0.00 0.00 4.00
+    M12 0.00 1.00 1.00 3.00
+    M15 0.00 2.30 2.30 6.30
+    M14 2.00 0.00 0.00 5.50
+    M17 5.00 1.00 1.00 4.00
+    M16 0.00 2.00 2.00 5.00
+    M18 0.00 7.53 7.53 5.00
+  endcenterline
+
+endsurvey

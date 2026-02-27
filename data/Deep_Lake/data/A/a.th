@@ -1,0 +1,27 @@
+encoding utf-8
+
+survey a
+
+       input a.th2
+       map aMP
+           aSP1
+       endmap
+ 
+centerline
+       date 2022.10.15
+       units clino compass degrees
+       units length depth feet
+       team "Michael Raymond" pics
+       team "Ian Flom" instruments
+
+       data normal from to length compass clino left right up down
+
+       a3 a4 25.9 246.4 -13.4 2.5 13 2 0.5
+       a4 a5 15.9 303.0 3.7 5 8 2.5 1
+       a5 a6 38.5 294.7 2.0 5 6 2 2
+       a6 a7 5.3 171.4 -16.2 - - - -
+       a6 - 15.0 271.5 -15.5 - - - -
+
+endcenterline
+
+endsurvey

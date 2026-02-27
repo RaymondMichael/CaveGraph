@@ -1,0 +1,30 @@
+encoding  utf-8
+ 
+survey main -title "Deep Lake Cave"
+
+       input data/Surface/surface
+       input data/A/a
+       input data/B/b
+       input data/C/c
+       input data/D/d
+       input data/E/e
+       input data/F/f
+
+       join aSP1@a bSP1@b
+       join b6SP1@b cSP1@c
+
+       centerline
+              station a3@surface "Main Entrance" entrance
+              cs lat-long
+              fix a1@surface 43.605901 -92.226554 301
+       
+              equate a3@surface a3@a
+              equate a7@a b27@b
+              equate b1@b c1@c
+              equate c7@c d1@d
+              equate d5@d e1@e
+              equate e3@e f1@f
+       endcenterline
+    
+endsurvey
+

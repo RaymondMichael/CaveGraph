@@ -1,0 +1,22 @@
+encoding  utf-8
+
+survey surface -title "Some surface data"
+ 
+ 
+centerline
+       date 2022.10.15
+       units clino compass degrees
+       units length depth feet
+       team "Michael Raymond" pics
+       team "Ian Flom" instruments
+
+       flags surface
+
+       data normal from to length compass backcompass clino backclino
+
+       a1 a2 40.6 261.4 81.4 7.9 -7.4
+       a2 a3 11.1 311.9 131.9 -23.6 23.6
+ 
+endcenterline
+endsurvey
+

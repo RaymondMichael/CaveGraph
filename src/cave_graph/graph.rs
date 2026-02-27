@@ -32,7 +32,7 @@ impl PartialEq for Vertex {
     }
 }
 
-    impl Eq for Vertex {}
+impl Eq for Vertex {}
 /*
     struct VertexTracker {
         vertex: <Rc<Vertex>>,
