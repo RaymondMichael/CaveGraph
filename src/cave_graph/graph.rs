@@ -127,11 +127,7 @@ impl MapGraph {
         for i in 0..verts.len() {
             //println!("{}", verts[i]);
 
-            let v: Rc<RefCell<Vertex>> = RefCell::new(
-                Vertex::new(String::from(verts[i]))).into();
-            let name = v.borrow_mut().name.clone();
-
-            self.vertices.insert(name, v);
+            self.insert_vertex(&String::from(verts[i]));
         }
     }
 
