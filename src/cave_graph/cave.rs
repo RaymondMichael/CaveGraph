@@ -6,8 +6,8 @@ use std::rc::Rc;
 pub mod therion_reader;
 
 #[derive(PartialEq, Eq, Hash)]
-struct Station {
-    name: String
+pub struct Station {
+    pub name: String
 }
 
 impl Station {
@@ -18,11 +18,21 @@ impl Station {
     }
 }
 
-struct Equality {
+pub struct Equality {
     book0: String,
     station0: String,
     book1: String,
     station1: String
+}
+
+impl Equality {
+    pub fn v0(&self) -> String {
+        format!("{}@{}", self.station0, self.book0)
+    }
+
+    pub fn v1(&self) -> String {
+        format!("{}@{}", self.station1, self.book1)
+    }
 }
 
 impl Clone for Equality {
@@ -36,8 +46,8 @@ impl Clone for Equality {
     }
 }
 
-struct Shot {
-    length: f32,
+pub struct Shot {
+    pub length: f32,
     azimuth: f32,
     inclination: f32
 }
@@ -52,10 +62,10 @@ impl Shot {
     }
 }
 
-struct Book {
-    title: String,
+pub struct Book {
+    pub title: String,
     stations: HashSet<Rc<Station>>,
-    shots: HashMap<(Rc<Station>, Rc<Station>), Shot>,
+    pub shots: HashMap<(Rc<Station>, Rc<Station>), Shot>,
     sub_books: Vec<String>,
     equalities: Vec<Equality>
 }
@@ -87,8 +97,8 @@ impl Hash for Book {
 }
 
 pub struct Cave {
-    books: HashSet<Book>,
-    equalities: Vec<Equality>
+    pub books: HashSet<Book>,
+    pub equalities: Vec<Equality>
 }
 
 impl Cave {

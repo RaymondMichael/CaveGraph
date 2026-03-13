@@ -2,10 +2,17 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
+use super::cave::Cave;
 
 struct Vertex {
     name : String,
     distance: f64,
+}
+
+impl Vertex {
+    pub fn new(title: String) -> Vertex {
+        Vertex {name: title, distance: 99999999999.9}
+    }
 }
 
 impl Ord for Vertex {
@@ -71,6 +78,10 @@ struct Edge {
     distance: f32,
 }
 
+/*
+ * When passed a vertex which the edge is connected to, return the other
+ * vertex the edge is connected to
+ */
 impl Edge {
     fn other_vert(&self, vertex: &Rc<RefCell<Vertex>>) -> Rc<RefCell<Vertex>> {
         if self.p0.borrow().name == vertex.borrow().name {
@@ -91,20 +102,43 @@ impl MapGraph {
         MapGraph {vertices: HashMap::new(), edges: HashMap::new()}
     }
 
+    /*
+     * Add the vertex if the name is not already in the set of vertices.
+     * Return the vertex.
+     */
+    fn insert_vertex(&mut self, name: &String) -> Rc<RefCell<Vertex>> {
+        let v = match self.vertices.get(name) {
+            Some(v) => v.clone(),
+            None => {
+                let v: Rc<RefCell<Vertex>> = RefCell::new(
+                    Vertex::new(name.clone())).into();
+                self.vertices.insert(name.clone(), v.clone());
+                v
+            }
+        };
+
+        v
+    }
+
+    /*
+     * Take an array of vertex names and add them as vertex objects
+     */
     pub fn insert_vertices(&mut self, verts: &[&str]) {
         for i in 0..verts.len() {
             //println!("{}", verts[i]);
 
-            let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex {
-                name: String::from(verts[i]),
-                distance: 99999999999.9
-            }).into();
+            let v: Rc<RefCell<Vertex>> = RefCell::new(
+                Vertex::new(String::from(verts[i]))).into();
             let name = v.borrow_mut().name.clone();
 
             self.vertices.insert(name, v);
         }
     }
 
+    /*
+     * Take an array of edge descriptions, turn them into edge objects that
+     * reference the named vertex objects, and add them to the graph
+     */
     pub fn insert_edges(&mut self, edges: &[(&str, &str, f32)]) {
         for i in 0..edges.len() {
             let (p0, p1, d) = edges[i];
@@ -120,6 +154,9 @@ impl MapGraph {
         }
     }
 
+    /*
+     * Return a vector of all the edges that connect to the named vertex
+     */
     fn find_edges(&self, name: &String) -> Vec<Rc<Edge>> {
         let mut v: Vec<Rc<Edge>> = Vec::new();
 
@@ -132,6 +169,56 @@ impl MapGraph {
         v
     }
 
+    /*
+     * Take a cave object and turn it into a graph we can analyze
+     */
+    pub fn cave_graph(cave: &Cave) -> MapGraph {
+        let mut graph = MapGraph::new();
+
+        /*
+         * For each equality, create a hashmap entry for each of the station
+         * names to the same vertex object
+         */
+        for eq in cave.equalities.iter() {
+            let v0 = eq.v0();
+            let v1 = eq.v1();
+            match graph.vertices.get(&v0) {
+                Some(v) => {
+                    graph.vertices.insert(v1, v.clone());
+                },
+                None => {
+                    let v: Rc<RefCell<Vertex>> = RefCell::new(
+                        Vertex::new(v0.clone())).into();
+                    graph.vertices.insert(v0, v.clone());
+                    graph.vertices.insert(v1, v);
+                }
+            }
+        }
+
+        /* For each book for each shot, create an edge */
+        for book in cave.books.iter() {
+            for s in book.shots.iter() {
+                let ((s0, s1), shot) = s;
+                let stat0 = format!("{}@{}", s0.name, book.title);
+                let v0 = graph.insert_vertex(&stat0);
+                let stat1 = format!("{}@{}", s1.name, book.title);
+                let v1 = graph.insert_vertex(&stat1);
+
+                let e = Edge {
+                    p0: v0.clone(),
+                    p1: v1.clone(),
+                    distance: shot.length
+                };
+                graph.edges.insert((stat0, stat1), e.into());
+            }
+        }
+
+        graph
+    }
+
+    /*
+     * Return the shortest distance between the two named vertices
+     */
     pub fn shortest_path(&mut self, start: &String, finish: &String) -> f64 {
         let start_v = self.vertices.get(start).
             expect("Couldn't find the starting vertex");

@@ -18,7 +18,12 @@ fn main() {
 
     let mut cave = Cave::new();
     cave::therion_reader::read_therion(
-        //        &mut cave, &"".to_string(), &"data/Deep_Lake/deep_lake.th".to_string());
-                &mut cave, &"".to_string(), &"HMaze.th".to_string());
-    cave.print();
+        &mut cave, &"".to_string(), &"data/Deep_Lake/deep_lake.th".to_string());
+        //&mut cave, &"".to_string(), &"HMaze.th".to_string());
+    //cave.print();
+
+    let mut graph = MapGraph::cave_graph(&cave);
+    let distance = graph.shortest_path(
+        &"a3@a".to_string(), &"b26@b".to_string());
+    println!("Shortest distance is {}", distance);
 }
