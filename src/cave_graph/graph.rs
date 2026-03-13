@@ -5,17 +5,29 @@ use std::rc::Rc;
 use super::cave::Cave;
 
 struct Vertex {
-    name : String,
-    distance: f64,
+    name: String
 }
 
 impl Vertex {
     pub fn new(title: String) -> Vertex {
-        Vertex {name: title, distance: 99999999999.9}
+        Vertex {name: title}
     }
 }
 
-impl Ord for Vertex {
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Vertex {}
+
+struct VertexTracker {
+    vertex: Rc<Vertex>,
+    distance: f64
+}
+
+impl Ord for VertexTracker {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.distance < other.distance {
             Ordering::Less
@@ -27,54 +39,23 @@ impl Ord for Vertex {
     }
 }
 
-impl PartialOrd for Vertex {
+impl PartialOrd for VertexTracker {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl PartialEq for Vertex {
+impl PartialEq for VertexTracker {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.vertex == other.vertex
     }
 }
 
-impl Eq for Vertex {}
-/*
-    struct VertexTracker {
-        vertex: <Rc<Vertex>>,
-        distance: f64
-    }
+impl Eq for VertexTracker {}
 
-    impl Ord for VertexTracker {
-        fn cmp(&self, other: &Self) -> Ordering {
-            if self.distance < other.distance {
-                Ordering::Less
-            } else if self.distance > other.distance {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
-        }
-    }
-
-    impl PartialOrd for VertexTracker {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-
-    impl PartialEq for VertexTracker {
-        fn eq(&self, other: &Self) -> bool {
-            self.name == other.name
-        }
-    }
-
-    impl Eq for VertexTracker {}
-*/
 struct Edge {
-    p0 : Rc<RefCell<Vertex>>,
-    p1 : Rc<RefCell<Vertex>>,
+    p0 : Rc<Vertex>,
+    p1 : Rc<Vertex>,
     distance: f32,
 }
 
@@ -83,8 +64,8 @@ struct Edge {
  * vertex the edge is connected to
  */
 impl Edge {
-    fn other_vert(&self, vertex: &Rc<RefCell<Vertex>>) -> Rc<RefCell<Vertex>> {
-        if self.p0.borrow().name == vertex.borrow().name {
+    fn other_vert(&self, vertex: &Rc<Vertex>) -> Rc<Vertex> {
+        if self.p0.name == vertex.name {
             self.p1.clone()
         } else {
             self.p0.clone()
@@ -93,7 +74,7 @@ impl Edge {
 }
 
 pub struct MapGraph {
-    vertices: HashMap<String, Rc<RefCell<Vertex>>>,
+    vertices: HashMap<String, Rc<Vertex>>,
     edges: HashMap<(String, String), Rc<Edge>>,
 }
 
@@ -106,12 +87,11 @@ impl MapGraph {
      * Add the vertex if the name is not already in the set of vertices.
      * Return the vertex.
      */
-    fn insert_vertex(&mut self, name: &String) -> Rc<RefCell<Vertex>> {
+    fn insert_vertex(&mut self, name: &String) -> Rc<Vertex> {
         let v = match self.vertices.get(name) {
             Some(v) => v.clone(),
             None => {
-                let v: Rc<RefCell<Vertex>> = RefCell::new(
-                    Vertex::new(name.clone())).into();
+                let v: Rc<Vertex> = Rc::new(Vertex::new(name.clone()));
                 self.vertices.insert(name.clone(), v.clone());
                 v
             }
@@ -157,7 +137,7 @@ impl MapGraph {
         let mut v: Vec<Rc<Edge>> = Vec::new();
 
         for (_, e) in self.edges.iter() {
-            if e.p0.borrow().name == *name || e.p1.borrow().name == *name {
+            if e.p0.name == *name || e.p1.name == *name {
                 v.push(e.clone());
             }
         }
@@ -183,8 +163,8 @@ impl MapGraph {
                     graph.vertices.insert(v1, v.clone());
                 },
                 None => {
-                    let v: Rc<RefCell<Vertex>> = RefCell::new(
-                        Vertex::new(v0.clone())).into();
+                    let v: Rc<Vertex> = Rc::new(
+                        Vertex::new(v0.clone()));
                     graph.vertices.insert(v0, v.clone());
                     graph.vertices.insert(v1, v);
                 }
@@ -205,7 +185,9 @@ impl MapGraph {
                     p1: v1.clone(),
                     distance: shot.length
                 };
-                graph.edges.insert((stat0, stat1), e.into());
+                graph.edges.insert(
+                    (v0.name.clone(), v1.name.clone()),
+                    e.into());
             }
         }
 
@@ -215,34 +197,71 @@ impl MapGraph {
     /*
      * Return the shortest distance between the two named vertices
      */
-    pub fn shortest_path(&mut self, start: &String, finish: &String) -> f64 {
+    pub fn shortest_path(&self, start: &String, finish: &String) -> f64 {
         let start_v = self.vertices.get(start).
             expect("Couldn't find the starting vertex");
         let end_v = self.vertices.get(finish).
             expect("Couldn't find the ending vertex");
 
-        let mut unvisited: Vec<Rc<RefCell<Vertex>>> = Vec::new();
+        let mut unvisited: Vec<Rc<RefCell<VertexTracker>>> = Vec::new();
+        let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
         for (_, v) in self.vertices.iter() {
-            v.borrow_mut().distance = 999999999999.9;
-            unvisited.push(v.clone());
+            let vt: Rc<RefCell<VertexTracker>> = RefCell::new(VertexTracker {
+                distance: 999999999999.9,
+                vertex: v.clone()
+            }).into();
+            if vt.borrow().vertex == *start_v {
+                vt.borrow_mut().distance = 0.0;
+            }
+            unvisited.push(vt.clone());
+            let name: String = vt.borrow().vertex.name.clone();
+            vt_lookup.insert(name, vt);
         }
-        start_v.borrow_mut().distance = 0.0;
 
         unvisited.sort();
         for _i in 0..unvisited.len() {
-            let v = unvisited.remove(0);
-            if v == *end_v {break;}
-            let edges = self.find_edges(&v.borrow().name);
+            let vt = unvisited.remove(0);
+            if vt.borrow().vertex == *end_v {break;}
+            let edges = self.find_edges(&vt.borrow().vertex.name);
             for e in edges.iter() {
-                let v_other = e.other_vert(&v);
-                let new_dist = v.borrow().distance + f64::from(e.distance);
-                if v_other.borrow().distance > new_dist {
-                    v_other.borrow_mut().distance = new_dist;
+                let v_other = e.other_vert(&vt.borrow().vertex);
+                let vt_other = vt_lookup.get(&v_other.name).
+                    expect("Couldn't find the matching VT");
+                let new_dist = vt.borrow().distance + f64::from(e.distance);
+                if vt_other.borrow().distance > new_dist {
+                    vt_other.borrow_mut().distance = new_dist;
                 }
             }
             unvisited.sort();
         }
-        
-        end_v.borrow().distance
+
+        let end_vt = vt_lookup.get(&end_v.name).
+            expect("Couldn't find the matching ending VT");
+
+        end_vt.borrow().distance
+    }
+
+    /*
+     * Return the two vertices that are the furthest apart from each other,
+     * and the distance between them
+     */
+    pub fn diameter(&self) -> (String, String, f64) {
+        let mut longest_distance: f64 = 0.0;
+        let mut longest_start = String::new();
+        let mut longest_end = String::new();
+
+        for (start_name, _) in self.vertices.iter() {
+            for (end_name, _) in self.vertices.iter() {
+                if start_name == end_name {continue;}
+                let distance = self.shortest_path(&start_name, &end_name);
+                if distance > longest_distance {
+                    longest_distance = distance;
+                    longest_start = start_name.clone();
+                    longest_end = end_name.clone();
+                }
+            }
+        }
+
+        (longest_start, longest_end, longest_distance)
     }
 }

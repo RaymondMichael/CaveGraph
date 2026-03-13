@@ -22,8 +22,12 @@ fn main() {
         //&mut cave, &"".to_string(), &"HMaze.th".to_string());
     //cave.print();
 
-    let mut graph = MapGraph::cave_graph(&cave);
+    let graph = MapGraph::cave_graph(&cave);
     let distance = graph.shortest_path(
         &"a3@a".to_string(), &"b26@b".to_string());
     println!("Shortest distance is {}", distance);
+
+    let (start, end, distance) = graph.diameter();
+    println!("Graph diameter is {} between stations {} and {}",
+             distance, start, end);
 }
