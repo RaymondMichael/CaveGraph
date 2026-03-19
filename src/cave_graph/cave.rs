@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 pub mod therion_reader;
+pub mod walls_reader;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct Station {

@@ -16,6 +16,7 @@ fn main() {
     let distance = graph.shortest_path(&"A".to_string(), &"B".to_string());
     println!("Shortest distance is {}", distance);
 
+    /* Read in a Therion-based cave */
     let mut cave = Cave::new();
     cave::therion_reader::read_therion(
         &mut cave, &"".to_string(), &"data/Deep_Lake/deep_lake.th".to_string());
@@ -30,4 +31,10 @@ fn main() {
     let (start, end, distance) = graph.diameter();
     println!("Graph diameter is {} between stations {} and {}",
              distance, start, end);
+
+    /* Read in a Walls-based cave */
+    let mut cave = Cave::new();
+    cave::walls_reader::read_walls(
+        &mut cave, &"data/Walls/".to_string(), &"MCSVY.wpj".to_string());
+    cave.print();
 }
