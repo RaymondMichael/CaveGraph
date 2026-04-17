@@ -158,7 +158,11 @@ impl MapGraph {
         for eq in cave.equalities.iter() {
             let v0 = eq.v0();
             let v1 = eq.v1();
-            match graph.vertices.get(&v0) {
+            let m0 = graph.vertices.get(&v0);
+//XXX this block of code is broken if v1 already exists, and has multiple station names pointing to its object
+            //let m1 = graph.vertices.get(&v1);
+
+            match m0 {
                 Some(v) => {
                     graph.vertices.insert(v1, v.clone());
                 },
@@ -175,9 +179,9 @@ impl MapGraph {
         for book in cave.books.iter() {
             for s in book.shots.iter() {
                 let ((s0, s1), shot) = s;
-                let stat0 = format!("{}@{}", s0.name, book.title);
+                let stat0 = format!("{}@{}", s0.name, book.prefix);
                 let v0 = graph.insert_vertex(&stat0);
-                let stat1 = format!("{}@{}", s1.name, book.title);
+                let stat1 = format!("{}@{}", s1.name, book.prefix);
                 let v1 = graph.insert_vertex(&stat1);
 
                 let e = Edge {

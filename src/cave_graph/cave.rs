@@ -65,6 +65,7 @@ impl Shot {
 
 pub struct Book {
     pub title: String,
+    pub prefix: String,
     stations: HashSet<Rc<Station>>,
     pub shots: HashMap<(Rc<Station>, Rc<Station>), Shot>,
     sub_books: Vec<String>,
@@ -75,6 +76,7 @@ impl Book {
     pub fn new() -> Self {
         Self {
             title: String::new(),
+            prefix: String::new(),
             stations: HashSet::new(),
             shots: HashMap::new(),
             sub_books: Vec::new(),

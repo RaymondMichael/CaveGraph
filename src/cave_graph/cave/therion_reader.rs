@@ -117,6 +117,7 @@ fn book_parse(dir_name: &String, fname: &String) -> Option<Book> {
             book.sub_books.push(String::from(tokens[1]));
         } else if tokens[0] == "survey" {
             book.title = String::from(tokens[1]);
+            book.prefix = book.title.clone();
         } else if tokens[0] == "map" {
             in_map = true;
             continue;
@@ -143,9 +144,9 @@ pub fn read_therion(cave: &mut Cave, dir_name: &String, cave_name: &String) {
     match res {
         Some(book) => {
             /* Add the directory of the file to the current directory */
-            let (prefix,_suffix) = match cave_name.rsplit_once('/') {
-                Some((prefix,_suffix)) => (prefix, _suffix),
-                None => ("",cave_name.as_str())
+            let (prefix, _suffix) = match cave_name.rsplit_once('/') {
+                Some((prefix, _suffix)) => (prefix, _suffix),
+                None => ("", cave_name.as_str())
             };
             let ndir_name: String = dir_name.to_owned() +
                 &prefix.to_string() + "/";
