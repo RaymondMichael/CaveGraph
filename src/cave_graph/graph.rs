@@ -107,8 +107,6 @@ impl MapGraph {
      */
     pub fn insert_vertices(&mut self, verts: &[&str]) {
         for i in 0..verts.len() {
-            //println!("{}", verts[i]);
-
             self.insert_vertex(&String::from(verts[i]));
         }
     }
@@ -120,7 +118,6 @@ impl MapGraph {
     pub fn insert_edges(&mut self, edges: &[(&str, &str, f32)]) {
         for i in 0..edges.len() {
             let (p0, p1, d) = edges[i];
-            //println!("{} {}", p0, p1);
 
             let v0 = self.vertices.get(p0).
                 expect("Couldn't find the first vertex");
@@ -148,6 +145,64 @@ impl MapGraph {
     }
 
     /*
+     * In self.vertices we want to change all references to v1_obj to
+     * reference v0_obj instead
+     */
+    fn move_equalities(&mut self, v0_obj: Rc<Vertex>, v1_obj: Rc<Vertex>) {
+        let mut v: Vec<(String, Rc<Vertex>)> = Vec::new();
+
+        /* Collect all the mappings we need to move */
+        for (name, obj) in self.vertices.iter() {
+            if *obj == v1_obj {
+                v.push((name.clone(), v0_obj.clone()));
+            }
+        }
+
+        /* Insert them now that self.vertices is mutable */
+        for (name, obj) in v.iter() {
+            self.vertices.insert(name.clone(), obj.clone());
+        }
+    }
+
+    /*
+     * This handles adding a single station equality when setting up a new
+     * MapGraph. We check whether the two referenced stations are already in
+     * the set of vertices already, and act accordingly. The most complicated
+     * situation is when they both already exist, and so all the data about
+     * one needs to be moved to the other.
+     */
+    fn insert_equality(&mut self, v0: String, v1: String) {
+        let m0 = self.vertices.get(&v0);
+        let m1 = self.vertices.get(&v1);
+
+        match m0 {
+            Some(va) => {
+                match m1 {
+                    Some(vb) => {
+                        self.move_equalities(va.clone(), vb.clone());
+                    },
+                    None => {
+                        self.vertices.insert(v1, va.clone());
+                    }
+                }
+            },
+            None => {
+                match m1 {
+                    Some(vb) => {
+                        self.vertices.insert(v0, vb.clone());
+                    },
+                    None => {
+                        let v: Rc<Vertex> = Rc::new(
+                            Vertex::new(v0.clone()));
+                        self.vertices.insert(v0, v.clone());
+                        self.vertices.insert(v1, v);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
      * Take a cave object and turn it into a graph we can analyze
      */
     pub fn cave_graph(cave: &Cave) -> MapGraph {
@@ -160,21 +215,7 @@ impl MapGraph {
         for eq in cave.equalities.iter() {
             let v0 = eq.v0();
             let v1 = eq.v1();
-            let m0 = graph.vertices.get(&v0);
-//XXX this block of code is broken if v1 already exists, and has multiple station names pointing to its object
-            //let m1 = graph.vertices.get(&v1);
-
-            match m0 {
-                Some(v) => {
-                    graph.vertices.insert(v1, v.clone());
-                },
-                None => {
-                    let v: Rc<Vertex> = Rc::new(
-                        Vertex::new(v0.clone()));
-                    graph.vertices.insert(v0, v.clone());
-                    graph.vertices.insert(v1, v);
-                }
-            }
+            graph.insert_equality(v0, v1);
         }
 
         /* For each book for each shot, create an edge */
