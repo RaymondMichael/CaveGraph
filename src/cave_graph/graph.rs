@@ -79,6 +79,8 @@ pub struct MapGraph {
 }
 
 impl MapGraph {
+    const CANARY: f64 = 999999999999.9;
+
     pub fn new() -> MapGraph {
         MapGraph {vertices: HashMap::new(), edges: HashMap::new()}
     }
@@ -211,7 +213,7 @@ impl MapGraph {
         let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
         for (_, v) in self.vertices.iter() {
             let vt: Rc<RefCell<VertexTracker>> = RefCell::new(VertexTracker {
-                distance: 999999999999.9,
+                distance: Self::CANARY,
                 vertex: v.clone()
             }).into();
             if vt.borrow().vertex == *start_v {
@@ -225,6 +227,7 @@ impl MapGraph {
         unvisited.sort();
         for _i in 0..unvisited.len() {
             let vt = unvisited.remove(0);
+            if vt.borrow().distance == Self::CANARY {return -1.0};
             if vt.borrow().vertex == *end_v {break;}
             let edges = self.find_edges(&vt.borrow().vertex.name);
             for e in edges.iter() {
@@ -262,6 +265,9 @@ impl MapGraph {
                     longest_distance = distance;
                     longest_start = start_name.clone();
                     longest_end = end_name.clone();
+                } else if distance == Self::CANARY {
+                    println!("{} and {} are disconnected",
+                             start_name, end_name);
                 }
             }
         }
