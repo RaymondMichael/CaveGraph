@@ -2,15 +2,25 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::SystemTime;
 use super::cave::Cave;
 
+struct Edge {
+    other : Rc<RefCell<Vertex>>,
+    distance: f64
+}
+
 struct Vertex {
-    name: String
+    name: String,
+    edges: Vec<Edge>
 }
 
 impl Vertex {
     pub fn new(title: String) -> Vertex {
-        Vertex {name: title}
+        Vertex {
+            name: title,
+            edges: Vec::new()
+        }
     }
 }
 
@@ -23,7 +33,7 @@ impl PartialEq for Vertex {
 impl Eq for Vertex {}
 
 struct VertexTracker {
-    vertex: Rc<Vertex>,
+    vertex: Rc<RefCell<Vertex>>,
     distance: f64
 }
 
@@ -53,47 +63,26 @@ impl PartialEq for VertexTracker {
 
 impl Eq for VertexTracker {}
 
-struct Edge {
-    p0 : Rc<Vertex>,
-    p1 : Rc<Vertex>,
-    distance: f32,
-}
-
-/*
- * When passed a vertex which the edge is connected to, return the other
- * vertex the edge is connected to
- */
-impl Edge {
-    fn other_vert(&self, vertex: &Rc<Vertex>) -> Rc<Vertex> {
-        if self.p0.name == vertex.name {
-            self.p1.clone()
-        } else {
-            self.p0.clone()
-        }
-    }
-}
-
 pub struct MapGraph {
-    vertices: HashMap<String, Rc<Vertex>>,
-    edges: HashMap<(String, String), Rc<Edge>>,
+    vertices: HashMap<String, Rc<RefCell<Vertex>>>,
 }
 
 impl MapGraph {
     const CANARY: f64 = 999999999999.9;
 
     pub fn new() -> MapGraph {
-        MapGraph {vertices: HashMap::new(), edges: HashMap::new()}
+        MapGraph {vertices: HashMap::new()}
     }
 
     /*
      * Add the vertex if the name is not already in the set of vertices.
      * Return the vertex.
      */
-    fn insert_vertex(&mut self, name: &String) -> Rc<Vertex> {
+    fn insert_vertex(&mut self, name: &String) -> Rc<RefCell<Vertex>> {
         let v = match self.vertices.get(name) {
             Some(v) => v.clone(),
             None => {
-                let v: Rc<Vertex> = Rc::new(Vertex::new(name.clone()));
+                let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex::new(name.clone())).into();
                 self.vertices.insert(name.clone(), v.clone());
                 v
             }
@@ -124,32 +113,26 @@ impl MapGraph {
             let v1 = self.vertices.get(p1).
                 expect("Couldn't find the second vertex");
 
-            let e = Edge {p0: v0.clone(), p1: v1.clone(), distance: d};
-            self.edges.insert((p0.to_string(), p1.to_string()), e.into());
+            let e1 = Edge {
+                other: v1.clone(),
+                distance: f64::from(d)
+            };
+            v0.borrow_mut().edges.push(e1);
+
+            let e0 = Edge {
+                other: v0.clone(),
+                distance: f64::from(d)
+            };
+            v1.borrow_mut().edges.push(e0);
         }
-    }
-
-    /*
-     * Return a vector of all the edges that connect to the named vertex
-     */
-    fn find_edges(&self, name: &String) -> Vec<Rc<Edge>> {
-        let mut v: Vec<Rc<Edge>> = Vec::new();
-
-        for (_, e) in self.edges.iter() {
-            if e.p0.name == *name || e.p1.name == *name {
-                v.push(e.clone());
-            }
-        }
-
-        v
     }
 
     /*
      * In self.vertices we want to change all references to v1_obj to
      * reference v0_obj instead
      */
-    fn move_equalities(&mut self, v0_obj: Rc<Vertex>, v1_obj: Rc<Vertex>) {
-        let mut v: Vec<(String, Rc<Vertex>)> = Vec::new();
+    fn move_equalities(&mut self, v0_obj: Rc<RefCell<Vertex>>, v1_obj: Rc<RefCell<Vertex>>) {
+        let mut v: Vec<(String, Rc<RefCell<Vertex>>)> = Vec::new();
 
         /* Collect all the mappings we need to move */
         for (name, obj) in self.vertices.iter() {
@@ -192,8 +175,8 @@ impl MapGraph {
                         self.vertices.insert(v0, vb.clone());
                     },
                     None => {
-                        let v: Rc<Vertex> = Rc::new(
-                            Vertex::new(v0.clone()));
+                        let v: Rc<RefCell<Vertex>> = RefCell::new(
+                            Vertex::new(v0.clone())).into();
                         self.vertices.insert(v0, v.clone());
                         self.vertices.insert(v1, v);
                     }
@@ -227,14 +210,17 @@ impl MapGraph {
                 let stat1 = format!("{}@{}", s1.name, book.prefix);
                 let v1 = graph.insert_vertex(&stat1);
 
-                let e = Edge {
-                    p0: v0.clone(),
-                    p1: v1.clone(),
-                    distance: shot.length
+                let e1 = Edge {
+                    other: v1.clone(),
+                    distance: f64::from(shot.length)
                 };
-                graph.edges.insert(
-                    (v0.name.clone(), v1.name.clone()),
-                    e.into());
+                v0.borrow_mut().edges.push(e1);
+
+                let e0 = Edge {
+                    other: v0.clone(),
+                    distance: f64::from(shot.length)
+                };
+                v1.borrow_mut().edges.push(e0);
             }
         }
 
@@ -261,29 +247,30 @@ impl MapGraph {
                 vt.borrow_mut().distance = 0.0;
             }
             unvisited.push(vt.clone());
-            let name: String = vt.borrow().vertex.name.clone();
+            let name: String = vt.borrow().vertex.borrow().name.clone();
             vt_lookup.insert(name, vt);
         }
 
         unvisited.sort();
         for _i in 0..unvisited.len() {
             let vt = unvisited.remove(0);
-            if vt.borrow().distance == Self::CANARY {return -1.0};
+            if vt.borrow().distance == Self::CANARY {return Self::CANARY;}
             if vt.borrow().vertex == *end_v {break;}
-            let edges = self.find_edges(&vt.borrow().vertex.name);
-            for e in edges.iter() {
-                let v_other = e.other_vert(&vt.borrow().vertex);
-                let vt_other = vt_lookup.get(&v_other.name).
+            let mut modified = false;
+            for e in vt.borrow().vertex.borrow().edges.iter() {
+                let vt_other = vt_lookup.get(&e.other.borrow().name).
                     expect("Couldn't find the matching VT");
-                let new_dist = vt.borrow().distance + f64::from(e.distance);
+                let new_dist = vt.borrow().distance + e.distance;
                 if vt_other.borrow().distance > new_dist {
                     vt_other.borrow_mut().distance = new_dist;
+                    modified = true;
                 }
             }
-            unvisited.sort();
+
+            if modified {unvisited.sort();}
         }
 
-        let end_vt = vt_lookup.get(&end_v.name).
+        let end_vt = vt_lookup.get(&end_v.borrow().name).
             expect("Couldn't find the matching ending VT");
 
         end_vt.borrow().distance
@@ -297,6 +284,7 @@ impl MapGraph {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
+        //let begin = SystemTime::now();
 
         for (start_name, _) in self.vertices.iter() {
             for (end_name, _) in self.vertices.iter() {
@@ -312,6 +300,10 @@ impl MapGraph {
                 }
             }
         }
+
+        //let end = SystemTime::now();
+        //let time_diff = end.duration_since(begin).unwrap();
+        //println!("Diameter took {:?}", time_diff);
 
         (longest_start, longest_end, longest_distance)
     }
