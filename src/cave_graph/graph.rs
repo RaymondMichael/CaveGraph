@@ -238,6 +238,7 @@ impl MapGraph {
 
         let mut unvisited: Vec<Rc<RefCell<VertexTracker>>> = Vec::new();
         let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
+        //XXX Lower priority, but someday don't re-do this every time
         for (_, v) in self.vertices.iter() {
             let vt: Rc<RefCell<VertexTracker>> = RefCell::new(VertexTracker {
                 distance: Self::CANARY,
@@ -245,23 +246,31 @@ impl MapGraph {
             }).into();
             if vt.borrow().vertex == *start_v {
                 vt.borrow_mut().distance = 0.0;
+                unvisited.push(vt.clone());
             }
-            unvisited.push(vt.clone());
+
             let name: String = vt.borrow().vertex.borrow().name.clone();
             vt_lookup.insert(name, vt);
         }
 
         unvisited.sort();
-        for _i in 0..unvisited.len() {
-            let vt = unvisited.remove(0);
-            if vt.borrow().distance == Self::CANARY {return Self::CANARY;}
+        loop {
+            let vt = match unvisited.pop() {
+                Some(vt) => vt,
+                None => return Self::CANARY
+            };
+
             if vt.borrow().vertex == *end_v {break;}
             let mut modified = false;
             for e in vt.borrow().vertex.borrow().edges.iter() {
                 let vt_other = vt_lookup.get(&e.other.borrow().name).
                     expect("Couldn't find the matching VT");
                 let new_dist = vt.borrow().distance + e.distance;
-                if vt_other.borrow().distance > new_dist {
+                if vt_other.borrow().distance == Self::CANARY {
+                    vt_other.borrow_mut().distance = new_dist;
+                    unvisited.push(vt_other.clone());
+                    modified = true;
+                } else if vt_other.borrow().distance > new_dist {
                     vt_other.borrow_mut().distance = new_dist;
                     modified = true;
                 }
@@ -284,10 +293,13 @@ impl MapGraph {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
-        //let begin = SystemTime::now();
+        //let mut counter0 = 0;
 
         for (start_name, _) in self.vertices.iter() {
+            //let mut counter1 = 0;
+            
             for (end_name, _) in self.vertices.iter() {
+                //let begin = SystemTime::now();
                 if start_name == end_name {continue;}
                 let distance = self.shortest_path(&start_name, &end_name);
                 if distance > longest_distance {
@@ -298,7 +310,14 @@ impl MapGraph {
                     println!("{} and {} are disconnected",
                              start_name, end_name);
                 }
+                //println!("Done with {}/{}", counter0, counter1);
+                //counter1 += 1;
+                //let end = SystemTime::now();
+                //let diff0 = end.duration_since(begin).unwrap();
+                //println!("Loop took {:?}", diff0);
             }
+
+            //counter0 += 1;
         }
 
         //let end = SystemTime::now();
