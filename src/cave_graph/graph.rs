@@ -239,6 +239,7 @@ impl MapGraph {
         let mut unvisited: Vec<Rc<RefCell<VertexTracker>>> = Vec::new();
         let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
         //XXX Lower priority, but someday don't re-do this every time
+        //let begin = SystemTime::now();
         for (_, v) in self.vertices.iter() {
             let vt: Rc<RefCell<VertexTracker>> = RefCell::new(VertexTracker {
                 distance: Self::CANARY,
@@ -252,6 +253,9 @@ impl MapGraph {
             let name: String = vt.borrow().vertex.borrow().name.clone();
             vt_lookup.insert(name, vt);
         }
+        //let end = SystemTime::now();
+        //let diff0 = end.duration_since(begin).unwrap();
+        //println!("Init took {:?}", diff0);
 
         unvisited.sort();
         loop {
@@ -295,10 +299,14 @@ impl MapGraph {
         let mut longest_end = String::new();
         //let mut counter0 = 0;
 
-        for (start_name, _) in self.vertices.iter() {
+        for (start_name, v0) in self.vertices.iter() {
             //let mut counter1 = 0;
-            
-            for (end_name, _) in self.vertices.iter() {
+
+            /* Not at the end of a tunnel, then likely not on the diameter */
+            if v0.borrow().edges.len() != 1 {continue;}
+
+            for (end_name, v1) in self.vertices.iter() {
+                if v1.borrow().edges.len() != 1 {continue;}
                 //let begin = SystemTime::now();
                 if start_name == end_name {continue;}
                 let distance = self.shortest_path(&start_name, &end_name);
