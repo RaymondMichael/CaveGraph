@@ -293,7 +293,7 @@ impl MapGraph {
      * Return the two vertices that are the furthest apart from each other,
      * and the distance between them
      */
-    pub fn diameter(&self) -> (String, String, f64) {
+    pub fn diameter(&self, no_midpoints: bool) -> (String, String, f64) {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
@@ -302,11 +302,11 @@ impl MapGraph {
         for (start_name, v0) in self.vertices.iter() {
             //let mut counter1 = 0;
 
-            /* Not at the end of a tunnel, then likely not on the diameter */
-            if v0.borrow().edges.len() != 1 {continue;}
+            /* Optionally skip non-endpoint vertices in diameter search */
+            if no_midpoints && v0.borrow().edges.len() != 1 {continue;}
 
             for (end_name, v1) in self.vertices.iter() {
-                if v1.borrow().edges.len() != 1 {continue;}
+                if no_midpoints && v1.borrow().edges.len() != 1 {continue;}
                 //let begin = SystemTime::now();
                 if start_name == end_name {continue;}
                 let distance = self.shortest_path(&start_name, &end_name);

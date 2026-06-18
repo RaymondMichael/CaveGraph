@@ -10,13 +10,14 @@ struct Config {
     calculate_diameter: bool,
     shortest_path_stations: Option<(String, String)>,
     print_cave: bool,
+    no_midpoints: bool,
 }
 
 fn parse_arguments() -> Result<Config, String> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        return Err("Usage: shortest_path <file.th|file.wpj> [--diameter] [--path station1 station2] [--print]".to_string());
+        return Err("Usage: shortest_path <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print]".to_string());
     }
 
     let file_path = args[1].clone();
@@ -39,6 +40,7 @@ fn parse_arguments() -> Result<Config, String> {
     let mut calculate_diameter = false;
     let mut shortest_path_stations: Option<(String, String)> = None;
     let mut print_cave = false;
+    let mut no_midpoints = false;
 
     let mut i = 2;
     while i < args.len() {
@@ -58,6 +60,10 @@ fn parse_arguments() -> Result<Config, String> {
                 print_cave = true;
                 i += 1;
             }
+            "--no-midpoints" => {
+                no_midpoints = true;
+                i += 1;
+            }
             _ => {
                 return Err(format!("Error: Unknown option: {}", args[i]));
             }
@@ -69,6 +75,7 @@ fn parse_arguments() -> Result<Config, String> {
         calculate_diameter,
         shortest_path_stations,
         print_cave,
+        no_midpoints,
     })
 }
 
@@ -130,7 +137,7 @@ fn main() {
 
     // Calculate and output diameter if requested
     if config.calculate_diameter {
-        let (start, end, distance) = graph.diameter();
+        let (start, end, distance) = graph.diameter(config.no_midpoints);
         println!("Graph diameter is {} between stations {} and {}", distance, start, end);
     }
 }
