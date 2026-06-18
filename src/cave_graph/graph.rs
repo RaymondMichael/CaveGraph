@@ -227,23 +227,25 @@ impl MapGraph {
     }
 
     /*
-     * Return the shortest distance between the two vertices
+     * Return the shortest distance between the two vertices, and use a
+     * reusable set of helper datastructures in the process.
      */
-    fn shortest_path_between_vertices(
+    fn shortest_path_between_vertices_with_buffers(
         &self,
         start_v: &Rc<RefCell<Vertex>>,
         end_v: &Rc<RefCell<Vertex>>,
+        distances: &mut HashMap<String, f64>,
+        frontier: &mut BinaryHeap<VertexTracker>,
     ) -> f64 {
         let start_name = start_v.borrow().name.clone();
         let end_name = end_v.borrow().name.clone();
 
-        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
-        for name in self.vertices.keys() {
-            distances.insert(name.clone(), Self::CANARY);
+        for distance in distances.values_mut() {
+            *distance = Self::CANARY;
         }
         distances.insert(start_name.clone(), 0.0);
 
-        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+        frontier.clear();
         frontier.push(VertexTracker {
             name: start_name,
             distance: 0.0,
@@ -289,6 +291,28 @@ impl MapGraph {
     }
 
     /*
+     * Return the shortest distance between the two vertices
+     */
+    fn shortest_path_between_vertices(
+        &self,
+        start_v: &Rc<RefCell<Vertex>>,
+        end_v: &Rc<RefCell<Vertex>>,
+    ) -> f64 {
+        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
+        for name in self.vertices.keys() {
+            distances.insert(name.clone(), Self::CANARY);
+        }
+        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+
+        self.shortest_path_between_vertices_with_buffers(
+            start_v,
+            end_v,
+            &mut distances,
+            &mut frontier,
+        )
+    }
+
+    /*
      * Return the shortest distance between the two named vertices
      */
     pub fn shortest_path(&self, start: &String, finish: &String) -> Result<f64, String> {
@@ -312,6 +336,12 @@ impl MapGraph {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
+        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
+        for name in self.vertices.keys() {
+            distances.insert(name.clone(), Self::CANARY);
+        }
+        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+
         let candidates: Vec<(&String, &Rc<RefCell<Vertex>>)> = self
             .vertices
             .iter()
@@ -323,7 +353,12 @@ impl MapGraph {
             for j in (i + 1)..candidates.len() {
                 let (end_name, v1) = candidates[j];
 
-                let distance = self.shortest_path_between_vertices(v0, v1);
+                let distance = self.shortest_path_between_vertices_with_buffers(
+                    v0,
+                    v1,
+                    &mut distances,
+                    &mut frontier,
+                );
                 if distance > longest_distance {
                     longest_distance = distance;
                     longest_start = start_name.clone();
