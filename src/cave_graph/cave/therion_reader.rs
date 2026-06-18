@@ -36,11 +36,18 @@ fn shot_parse(book: &mut Book, tokens: Vec<&str>) {
         book.stations.insert(Rc::clone(&station2));
     }
 
+    let shot_pair = (Rc::clone(&station1), Rc::clone(&station2));
+    let reverse_shot_pair = (Rc::clone(&station2), Rc::clone(&station1));
+    if book.shots.contains_key(&shot_pair) ||
+        book.shots.contains_key(&reverse_shot_pair) {
+            return;
+    }
+
     let len: f32 = tokens[2].parse::<f32>().unwrap();
     let az:  f32 = tokens[3].parse::<f32>().unwrap();
     let inc: f32 = tokens[4].parse::<f32>().unwrap();
     let shot: Shot = Shot::new(len, az, inc);
-    book.shots.insert((station1, station2), shot);
+    book.shots.insert(shot_pair, shot);
 }
 
 /*
