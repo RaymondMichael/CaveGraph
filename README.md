@@ -47,6 +47,12 @@ For an optimized binary:
 cargo build --release
 ```
 
+To build the standalone benchmark tool:
+
+```bash
+cargo build --bin graph_bench
+```
+
 ## Usage
 
 ```text
@@ -122,10 +128,54 @@ cargo run -- data/HMaze.th --print
 ## Project layout
 
 - `src/main.rs`: CLI argument parsing and program entry point
+- `src/bin/graph_bench.rs`: Standalone synthetic graph benchmark runner for diameter profiling
 - `src/cave_graph/cave/therion_reader.rs`: Therion parser
 - `src/cave_graph/cave/walls_reader.rs`: Walls parser
 - `src/cave_graph/graph.rs`: Graph construction and path algorithms
 - `data/`: Sample Therion and Walls survey data
+
+## Benchmarking diameter on synthetic graphs
+
+The repository includes a separate benchmarking binary so profiling can be done without modifying the main `cavegraph` application.
+
+### Benchmark usage
+
+```text
+cargo run --bin graph_bench -- --matrix [--repeats N] [--csv FILE]
+cargo run --bin graph_bench -- --topology chain|tree|sparse|medium|dense --vertices N [--edges N] [--seed N] [--repeats N] [--csv FILE] [--no-midpoints|--with-midpoints]
+```
+
+### One-liner workflow
+
+Build benchmark binary:
+
+```bash
+cargo build --bin graph_bench
+```
+
+Quick smoke check:
+
+```bash
+cargo run --bin graph_bench -- --topology chain --vertices 100 --repeats 2 --with-midpoints
+```
+
+Run the full profiling matrix (100 to 2000 vertices):
+
+```bash
+cargo run --bin graph_bench -- --matrix --repeats 5
+```
+
+Run matrix and write CSV output:
+
+```bash
+cargo run --bin graph_bench -- --matrix --repeats 5 --csv benchmark.csv
+```
+
+Run one targeted case for investigation:
+
+```bash
+cargo run --bin graph_bench -- --topology medium --vertices 1200 --seed 2 --repeats 7 --no-midpoints --csv benchmark.csv
+```
 
 ## Current limitations
 
