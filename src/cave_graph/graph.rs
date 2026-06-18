@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::rc::Rc;
 //use std::time::SystemTime;
@@ -33,19 +34,17 @@ impl PartialEq for Vertex {
 impl Eq for Vertex {}
 
 struct VertexTracker {
-    vertex: Rc<RefCell<Vertex>>,
+    name: String,
     distance: f64
 }
 
 impl Ord for VertexTracker {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.distance < other.distance {
-            Ordering::Less
-        } else if self.distance > other.distance {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
+        // Reverse ordering so BinaryHeap behaves as a min-priority queue.
+        other
+            .distance
+            .total_cmp(&self.distance)
+            .then_with(|| other.name.cmp(&self.name))
     }
 }
 
@@ -57,7 +56,7 @@ impl PartialOrd for VertexTracker {
 
 impl PartialEq for VertexTracker {
     fn eq(&self, other: &Self) -> bool {
-        self.vertex == other.vertex
+        self.name == other.name && self.distance == other.distance
     }
 }
 
@@ -235,58 +234,58 @@ impl MapGraph {
         start_v: &Rc<RefCell<Vertex>>,
         end_v: &Rc<RefCell<Vertex>>,
     ) -> f64 {
+        let start_name = start_v.borrow().name.clone();
+        let end_name = end_v.borrow().name.clone();
 
-        let mut unvisited: Vec<Rc<RefCell<VertexTracker>>> = Vec::new();
-        let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
-        //XXX Lower priority, but someday don't re-do this every time
-        //let begin = SystemTime::now();
-        for (_, v) in self.vertices.iter() {
-            let vt: Rc<RefCell<VertexTracker>> = RefCell::new(VertexTracker {
-                distance: Self::CANARY,
-                vertex: v.clone()
-            }).into();
-            if vt.borrow().vertex == *start_v {
-                vt.borrow_mut().distance = 0.0;
-                unvisited.push(vt.clone());
+        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
+        for name in self.vertices.keys() {
+            distances.insert(name.clone(), Self::CANARY);
+        }
+        distances.insert(start_name.clone(), 0.0);
+
+        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+        frontier.push(VertexTracker {
+            name: start_name,
+            distance: 0.0,
+        });
+
+        while let Some(current) = frontier.pop() {
+            let known = *distances
+                .get(&current.name)
+                .expect("Missing distance for queued vertex");
+
+            // Skip stale entries that were superseded by a shorter path.
+            if current.distance > known {
+                continue;
             }
 
-            let name: String = vt.borrow().vertex.borrow().name.clone();
-            vt_lookup.insert(name, vt);
-        }
-        //let end = SystemTime::now();
-        //let diff0 = end.duration_since(begin).unwrap();
-        //println!("Init took {:?}", diff0);
+            if current.name == end_name {
+                return current.distance;
+            }
 
-        unvisited.sort();
-        loop {
-            let vt = match unvisited.pop() {
-                Some(vt) => vt,
-                None => return Self::CANARY
-            };
+            let vertex = self
+                .vertices
+                .get(&current.name)
+                .expect("Couldn't find vertex by queued name");
 
-            if vt.borrow().vertex == *end_v {break;}
-            let mut modified = false;
-            for e in vt.borrow().vertex.borrow().edges.iter() {
-                let vt_other = vt_lookup.get(&e.other.borrow().name).
-                    expect("Couldn't find the matching VT");
-                let new_dist = vt.borrow().distance + e.distance;
-                if vt_other.borrow().distance == Self::CANARY {
-                    vt_other.borrow_mut().distance = new_dist;
-                    unvisited.push(vt_other.clone());
-                    modified = true;
-                } else if vt_other.borrow().distance > new_dist {
-                    vt_other.borrow_mut().distance = new_dist;
-                    modified = true;
+            for edge in vertex.borrow().edges.iter() {
+                let other_name = edge.other.borrow().name.clone();
+                let new_distance = current.distance + edge.distance;
+                let other_known = *distances
+                    .get(&other_name)
+                    .expect("Missing distance for adjacent vertex");
+
+                if new_distance < other_known {
+                    distances.insert(other_name.clone(), new_distance);
+                    frontier.push(VertexTracker {
+                        name: other_name,
+                        distance: new_distance,
+                    });
                 }
             }
-
-            if modified {unvisited.sort();}
         }
 
-        let end_vt = vt_lookup.get(&end_v.borrow().name).
-            expect("Couldn't find the matching ending VT");
-
-        end_vt.borrow().distance
+        Self::CANARY
     }
 
     /*
