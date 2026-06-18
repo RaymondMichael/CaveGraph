@@ -312,35 +312,26 @@ impl MapGraph {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
-        //let mut counter0 = 0;
+        let candidates: Vec<(&String, &Rc<RefCell<Vertex>>)> = self
+            .vertices
+            .iter()
+            .filter(|(_, vertex)| !no_midpoints || vertex.borrow().edges.len() == 1)
+            .collect();
 
-        for (start_name, v0) in self.vertices.iter() {
-            //let mut counter1 = 0;
+        for i in 0..candidates.len() {
+            let (start_name, v0) = candidates[i];
+            for j in (i + 1)..candidates.len() {
+                let (end_name, v1) = candidates[j];
 
-            /* Optionally skip non-endpoint vertices in diameter search */
-            if no_midpoints && v0.borrow().edges.len() != 1 {continue;}
-
-            for (end_name, v1) in self.vertices.iter() {
-                if no_midpoints && v1.borrow().edges.len() != 1 {continue;}
-                //let begin = SystemTime::now();
-                if start_name == end_name {continue;}
                 let distance = self.shortest_path_between_vertices(v0, v1);
                 if distance > longest_distance {
                     longest_distance = distance;
                     longest_start = start_name.clone();
                     longest_end = end_name.clone();
                 } else if distance == Self::CANARY {
-                    println!("{} and {} are disconnected",
-                             start_name, end_name);
+                    println!("{} and {} are disconnected", start_name, end_name);
                 }
-                //println!("Done with {}/{}", counter0, counter1);
-                //counter1 += 1;
-                //let end = SystemTime::now();
-                //let diff0 = end.duration_since(begin).unwrap();
-                //println!("Loop took {:?}", diff0);
             }
-
-            //counter0 += 1;
         }
 
         //let end = SystemTime::now();

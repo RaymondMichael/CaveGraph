@@ -183,3 +183,82 @@ Additional representative with-midpoints medians:
 - Follow-up actions:
   - Investigate tree regressions with a focused micro-benchmark.
   - Proceed to recommendation item 2 (unique unordered pair iteration in `diameter()`).
+
+### Optimization pass: Unique unordered pair iteration in diameter
+
+- Date: 2026-06-18
+- Branch/commit: working tree (pre-commit)
+- Recommendation item: 2) Avoid duplicate pair work in `diameter()`
+- Status: completed
+
+#### Change summary
+
+- Files changed: `src/cave_graph/graph.rs`
+- What changed: Updated `diameter()` to iterate only unique unordered candidate pairs (`i < j`) rather than both `(A, B)` and `(B, A)`.
+- Any behavior changes: No expected behavior change in diameter values; execution path count reduced.
+
+#### Benchmark command set
+
+```bash
+# Baseline (pre-change)
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for mode in --with-midpoints --no-midpoints; do
+    for v in 100 200 300; do
+      for t in chain tree sparse medium dense; do
+        cargo run --quiet --bin graph_bench -- --topology "$t" --vertices "$v" --repeats 3 "$mode";
+      done;
+    done;
+  done;
+}
+
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for v in 100 200 300; do
+    cargo run --quiet --bin graph_bench -- --topology sparse --vertices "$v" --edges 150 --repeats 2 --with-midpoints;
+  done;
+}
+
+# Post-change
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for mode in --with-midpoints --no-midpoints; do
+    for v in 100 200 300; do
+      for t in chain tree sparse medium dense; do
+        cargo run --quiet --bin graph_bench -- --topology "$t" --vertices "$v" --repeats 3 "$mode";
+      done;
+    done;
+  done;
+}
+
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for v in 100 200 300; do
+    cargo run --quiet --bin graph_bench -- --topology sparse --vertices "$v" --edges 150 --repeats 2 --with-midpoints;
+  done;
+}
+```
+
+#### Timing results
+
+| Case | Baseline median (ms) | New median (ms) | Speedup (x) | Baseline p95 (ms) | New p95 (ms) |
+|---|---:|---:|---:|---:|---:|
+| chain V=100 | 758 | 408 | 1.86 | 783 | 418 |
+| chain V=200 | 6114 | 3197 | 1.91 | 6203 | 3245 |
+| chain V=300 | 21105 | 10741 | 1.96 | 21178 | 10793 |
+| sparse V=100 E=150 | 1162 | 586 | 1.98 | 1162 | 586 |
+| sparse V=200 E=150 | 6644 | 3201 | 2.08 | 6644 | 3201 |
+| sparse V=300 E=150 | 21318 | 10750 | 1.98 | 21318 | 10750 |
+
+Additional representative with-midpoints medians:
+
+- Tree defaults: V=100 919 -> 495 (1.86x), V=200 7503 -> 3920 (1.91x), V=300 26395 -> 13192 (2.00x)
+- Medium defaults: V=100 1038 -> 557 (1.86x), V=200 8843 -> 4503 (1.96x), V=300 30469 -> 15346 (1.99x)
+- Dense defaults: V=100 1264 -> 653 (1.94x), V=200 10679 -> 5377 (1.99x), V=300 37032 -> 18584 (1.99x)
+
+#### Correctness checks
+
+- Diameter value match vs baseline: yes for deterministic cases; random topology endpoints may vary in name order while distance remains consistent.
+- Any regressions observed: none in sampled benchmarks.
+
+#### Decision
+
+- Keep change? yes
+- Follow-up actions:
+  - Proceed to recommendation item 3 (reuse shortest-path buffers).
