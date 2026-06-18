@@ -351,3 +351,58 @@ impl MapGraph {
         (longest_start, longest_end, longest_distance)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::cave::Cave;
+
+    #[test]
+    fn test_shortest_path_unknown_start() {
+        let mut cave = Cave::new();
+        let dir = "".to_string();
+        let file = "data/HMaze.th".to_string();
+        super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
+
+        let graph = MapGraph::cave_graph(&cave);
+        let result = graph.shortest_path(&"UNKNOWN@Test".to_string(), &"M1@HMaze".to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown starting station"));
+    }
+
+    #[test]
+    fn test_shortest_path_unknown_end() {
+        let mut cave = Cave::new();
+        let dir = "".to_string();
+        let file = "data/HMaze.th".to_string();
+        super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
+
+        let graph = MapGraph::cave_graph(&cave);
+        let result = graph.shortest_path(&"M1@HMaze".to_string(), &"UNKNOWN@Test".to_string());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown ending station"));
+    }
+
+    #[test]
+    fn test_shortest_path_returns_ok_for_valid_stations() {
+        let mut cave = Cave::new();
+        let dir = "".to_string();
+        let file = "data/HMaze.th".to_string();
+        super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
+
+        let graph = MapGraph::cave_graph(&cave);
+        let result = graph.shortest_path(&"M1@HMaze".to_string(), &"M2@HMaze".to_string());
+        assert!(result.is_ok(), "Valid stations should return Ok");
+    }
+
+    #[test]
+    fn test_map_graph_creation_succeeds() {
+        let mut cave = Cave::new();
+        let dir = "".to_string();
+        let file = "data/HMaze.th".to_string();
+        super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
+
+        let graph = MapGraph::cave_graph(&cave);
+        assert!(!graph.vertices.is_empty(), "Graph should have vertices");
+    }
+}

@@ -6,7 +6,7 @@ use std::rc::Rc;
 pub mod therion_reader;
 pub mod walls_reader;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Station {
     pub name: String
 }
@@ -127,5 +127,55 @@ impl Cave {
                          shot.length, shot.azimuth, shot.inclination);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_station_creation() {
+        let station = Station::new("A".to_string());
+        assert_eq!(station.name, "A");
+    }
+
+    #[test]
+    fn test_station_equality() {
+        let s1 = Station::new("A".to_string());
+        let s2 = Station::new("A".to_string());
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_shot_creation() {
+        let shot = Shot::new(100.0, 45.0, 30.0);
+        assert_eq!(shot.length, 100.0);
+    }
+
+    #[test]
+    fn test_book_creation() {
+        let book = Book::new();
+        assert_eq!(book.title, "");
+        assert_eq!(book.prefix, "");
+    }
+
+    #[test]
+    fn test_equality_formatting() {
+        let eq = Equality {
+            station0: "A".to_string(),
+            book0: "Main".to_string(),
+            station1: "B".to_string(),
+            book1: "Branch".to_string(),
+        };
+        assert_eq!(eq.v0(), "A@Main");
+        assert_eq!(eq.v1(), "B@Branch");
+    }
+
+    #[test]
+    fn test_cave_creation() {
+        let cave = Cave::new();
+        assert!(cave.books.is_empty());
+        assert!(cave.equalities.is_empty());
     }
 }
