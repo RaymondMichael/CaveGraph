@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "shortest_path"
+name = "cavegraph"
 version = "0.1.0"

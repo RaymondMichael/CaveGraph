@@ -228,13 +228,13 @@ impl MapGraph {
     }
 
     /*
-     * Return the shortest distance between the two named vertices
+     * Return the shortest distance between the two vertices
      */
-    pub fn shortest_path(&self, start: &String, finish: &String) -> f64 {
-        let start_v = self.vertices.get(start).
-            expect("Couldn't find the starting vertex");
-        let end_v = self.vertices.get(finish).
-            expect("Couldn't find the ending vertex");
+    fn shortest_path_between_vertices(
+        &self,
+        start_v: &Rc<RefCell<Vertex>>,
+        end_v: &Rc<RefCell<Vertex>>,
+    ) -> f64 {
 
         let mut unvisited: Vec<Rc<RefCell<VertexTracker>>> = Vec::new();
         let mut vt_lookup: HashMap<String, Rc<RefCell<VertexTracker>>> = HashMap::new();
@@ -290,6 +290,22 @@ impl MapGraph {
     }
 
     /*
+     * Return the shortest distance between the two named vertices
+     */
+    pub fn shortest_path(&self, start: &String, finish: &String) -> Result<f64, String> {
+        let start_v = match self.vertices.get(start) {
+            Some(vertex) => vertex,
+            None => return Err(format!("Unknown starting station: {}", start)),
+        };
+        let end_v = match self.vertices.get(finish) {
+            Some(vertex) => vertex,
+            None => return Err(format!("Unknown ending station: {}", finish)),
+        };
+
+        Ok(self.shortest_path_between_vertices(start_v, end_v))
+    }
+
+    /*
      * Return the two vertices that are the furthest apart from each other,
      * and the distance between them
      */
@@ -309,7 +325,7 @@ impl MapGraph {
                 if no_midpoints && v1.borrow().edges.len() != 1 {continue;}
                 //let begin = SystemTime::now();
                 if start_name == end_name {continue;}
-                let distance = self.shortest_path(&start_name, &end_name);
+                let distance = self.shortest_path_between_vertices(v0, v1);
                 if distance > longest_distance {
                     longest_distance = distance;
                     longest_start = start_name.clone();

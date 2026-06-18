@@ -1,6 +1,6 @@
-use shortest_path::cave_graph::cave;
-use shortest_path::cave_graph::cave::Cave;
-use shortest_path::cave_graph::graph::MapGraph;
+use cavegraph::cave_graph::cave;
+use cavegraph::cave_graph::cave::Cave;
+use cavegraph::cave_graph::graph::MapGraph;
 use std::env;
 use std::path::Path;
 use std::process;
@@ -17,7 +17,7 @@ fn parse_arguments() -> Result<Config, String> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        return Err("Usage: shortest_path <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print]".to_string());
+        return Err("Usage: cavegraph <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print]".to_string());
     }
 
     let file_path = args[1].clone();
@@ -131,7 +131,13 @@ fn main() {
 
     // Calculate and output shortest path if requested
     if let Some((station1, station2)) = config.shortest_path_stations {
-        let distance = graph.shortest_path(&station1, &station2);
+        let distance = match graph.shortest_path(&station1, &station2) {
+            Ok(distance) => distance,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                process::exit(1);
+            }
+        };
         println!("Shortest distance is {}", distance);
     }
 
