@@ -95,7 +95,7 @@ impl MapGraph {
                 self.id_to_name.push(name.clone());
 
                 let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex::new(name.clone())).into();
-                self.vertices.push(v.clone());
+                self.vertices.push(v);
                 id
             }
         };
