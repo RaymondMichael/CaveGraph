@@ -4,6 +4,8 @@ use std::str;
 fn run_cavegraph(args: &[&str]) -> (i32, String, String) {
     let mut cmd = Command::new("cargo");
     cmd.arg("run");
+    cmd.arg("--bin");
+    cmd.arg("cavegraph");
     cmd.arg("--");
     for arg in args {
         cmd.arg(arg);

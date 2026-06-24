@@ -14,15 +14,15 @@ This file tracks the optimization backlog for `diameter()` and related shortest-
 
 ## Prioritized optimization list
 
-- [ ] 1) Replace repeated `Vec::sort()` in shortest-path traversal with a min-priority queue (`BinaryHeap` pattern).
+- [x] 1) Replace repeated `Vec::sort()` in shortest-path traversal with a min-priority queue (`BinaryHeap` pattern).
   - Why: Sorting the candidate list repeatedly is expensive.
   - Expected gain: Large reduction in shortest-path inner-loop cost.
 
-- [ ] 2) Avoid duplicate pair work in `diameter()`.
+- [x] 2) Avoid duplicate pair work in `diameter()`.
   - Why: Current pair iteration effectively computes both (A, B) and (B, A).
   - Expected gain: Up to ~2x fewer shortest-path calls in diameter search.
 
-- [ ] 3) Reuse shortest-path buffers across runs.
+- [x] 3) Reuse shortest-path buffers across runs.
   - Why: Rebuilding distance/visited structures each call adds allocation and hashmap overhead.
   - Expected gain: Lower per-call overhead during repeated diameter computations.
 
@@ -262,3 +262,82 @@ Additional representative with-midpoints medians:
 - Keep change? yes
 - Follow-up actions:
   - Proceed to recommendation item 3 (reuse shortest-path buffers).
+
+### Optimization pass: Reuse shortest-path buffers across diameter calls
+
+- Date: 2026-06-18
+- Branch/commit: bd350ae
+- Recommendation item: 3) Reuse shortest-path buffers across runs
+- Status: completed
+
+#### Change summary
+
+- Files changed: `src/cave_graph/graph.rs`
+- What changed: Extracted core Dijkstra algorithm to `shortest_path_between_vertices_with_buffers()` accepting pre-allocated `HashMap<String, f64>` and `BinaryHeap<VertexTracker>`. Modified `diameter()` to create these buffers once and reuse them across all vertex-pair iterations with reset logic (values_mut for HashMap, clear for BinaryHeap).
+- Any behavior changes: No behavior changes; internal allocation patterns differ.
+
+#### Benchmark command set
+
+```bash
+# Baseline (post-opt#2)
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for mode in --with-midpoints --no-midpoints; do
+    for v in 100 200 300; do
+      for t in chain tree sparse medium dense; do
+        cargo run --quiet --bin graph_bench -- --topology "$t" --vertices "$v" --repeats 3 "$mode";
+      done;
+    done;
+  done;
+}
+
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for v in 100 200 300; do
+    cargo run --quiet --bin graph_bench -- --topology sparse --vertices "$v" --edges 150 --repeats 2 --with-midpoints;
+  done;
+}
+
+# Post-change
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for mode in --with-midpoints --no-midpoints; do
+    for v in 100 200 300; do
+      for t in chain tree sparse medium dense; do
+        cargo run --quiet --bin graph_bench -- --topology "$t" --vertices "$v" --repeats 3 "$mode";
+      done;
+    done;
+  done;
+}
+
+cd /Users/mraymond/usr/dev/hpe/CaveGraph && {
+  for v in 100 200 300; do
+    cargo run --quiet --bin graph_bench -- --topology sparse --vertices "$v" --edges 150 --repeats 2 --with-midpoints;
+  done;
+}
+```
+
+#### Timing results
+
+| Case | Baseline median (ms) | New median (ms) | Speedup (x) | Baseline p95 (ms) | New p95 (ms) |
+|---|---:|---:|---:|---:|---:|
+| chain V=100 | 408 | 283 | 1.44 | 418 | 308 |
+| chain V=200 | 3197 | 2255 | 1.42 | 3245 | 2267 |
+| chain V=300 | 10741 | 7705 | 1.39 | 10793 | 7766 |
+| sparse V=100 E=150 | 586 | 462 | 1.27 | 586 | 462 |
+| sparse V=200 E=150 | 3201 | 2363 | 1.35 | 3201 | 2363 |
+| sparse V=300 E=150 | 10750 | 7912 | 1.36 | 10750 | 7912 |
+
+Additional representative with-midpoints medians:
+
+- Tree defaults: V=100 495 -> 361 (1.37x), V=200 3920 -> 2931 (1.34x), V=300 13192 -> 10185 (1.29x)
+- Medium defaults: V=100 557 -> 427 (1.30x), V=200 4503 -> 3647 (1.24x), V=300 15346 -> 12422 (1.24x)
+- Dense defaults: V=100 653 -> 542 (1.20x), V=200 5377 -> 4389 (1.23x), V=300 18584 -> 15496 (1.20x)
+
+#### Correctness checks
+
+- Diameter value match vs baseline: yes, all tested cases produce identical diameter values.
+- Any regressions observed: none; consistent improvement across all topologies.
+
+#### Decision
+
+- Keep change? yes
+- Follow-up actions:
+  - Proceed to recommendation item 4 (integer-ID graph representation).

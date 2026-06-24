@@ -7,7 +7,7 @@ use std::rc::Rc;
 use super::cave::Cave;
 
 struct Edge {
-    other : Rc<RefCell<Vertex>>,
+    other : usize,
     distance: f64
 }
 
@@ -33,18 +33,17 @@ impl PartialEq for Vertex {
 
 impl Eq for Vertex {}
 
+// Integer-ID based vertex tracker for hot-path Dijkstra
 struct VertexTracker {
-    name: String,
+    id: usize,
     distance: f64
 }
 
 impl Ord for VertexTracker {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering so BinaryHeap behaves as a min-priority queue.
-        other
-            .distance
-            .total_cmp(&self.distance)
-            .then_with(|| other.name.cmp(&self.name))
+        other.distance.total_cmp(&self.distance).
+            then_with(|| other.id.cmp(&self.id))
     }
 }
 
@@ -56,38 +55,52 @@ impl PartialOrd for VertexTracker {
 
 impl PartialEq for VertexTracker {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.distance == other.distance
+        self.id == other.id && self.distance == other.distance
     }
 }
 
 impl Eq for VertexTracker {}
 
 pub struct MapGraph {
-    vertices: HashMap<String, Rc<RefCell<Vertex>>>,
+    //XXX duplicates the name
+    vertices: Vec<Rc<RefCell<Vertex>>>,
+    name_to_id: HashMap<String, usize>,
+    id_to_name: Vec<String>,
 }
 
 impl MapGraph {
     const CANARY: f64 = 999999999999.9;
 
     pub fn new() -> MapGraph {
-        MapGraph {vertices: HashMap::new()}
+        MapGraph {
+            vertices: Vec::new(),
+            name_to_id: HashMap::new(),
+            id_to_name: Vec::new(),
+        }
     }
 
     /*
      * Add the vertex if the name is not already in the set of vertices.
      * Return the vertex.
      */
-    fn insert_vertex(&mut self, name: &String) -> Rc<RefCell<Vertex>> {
-        let v = match self.vertices.get(name) {
-            Some(v) => v.clone(),
+    fn insert_vertex(&mut self, name: &String) -> usize {
+        let id = match self.name_to_id.get(name) {
+            Some(id) => {
+                *id
+            },
             None => {
+                // Assign a new ID for this vertex
+                let id = self.id_to_name.len();
+                self.name_to_id.insert(name.clone(), id);
+                self.id_to_name.push(name.clone());
+
                 let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex::new(name.clone())).into();
-                self.vertices.insert(name.clone(), v.clone());
-                v
+                self.vertices.push(v.clone());
+                id
             }
         };
 
-        v
+        id
     }
 
     /*
@@ -107,19 +120,22 @@ impl MapGraph {
         for i in 0..edges.len() {
             let (p0, p1, d) = edges[i];
 
-            let v0 = self.vertices.get(p0).
-                expect("Couldn't find the first vertex");
-            let v1 = self.vertices.get(p1).
-                expect("Couldn't find the second vertex");
+            let id0 = self.name_to_id.get(p0).
+                expect("Couldn't find the first vertex ID");
+            let id1 = self.name_to_id.get(p1).
+                expect("Couldn't find the second vertex ID");
+
+            let v0 = &self.vertices[*id0];
+            let v1 = &self.vertices[*id1];
 
             let e1 = Edge {
-                other: v1.clone(),
+                other: *id1,
                 distance: f64::from(d)
             };
             v0.borrow_mut().edges.push(e1);
 
             let e0 = Edge {
-                other: v0.clone(),
+                other: *id0,
                 distance: f64::from(d)
             };
             v1.borrow_mut().edges.push(e0);
@@ -130,19 +146,21 @@ impl MapGraph {
      * In self.vertices we want to change all references to v1_obj to
      * reference v0_obj instead
      */
-    fn move_equalities(&mut self, v0_obj: Rc<RefCell<Vertex>>, v1_obj: Rc<RefCell<Vertex>>) {
-        let mut v: Vec<(String, Rc<RefCell<Vertex>>)> = Vec::new();
+    fn move_equalities(&mut self, id0: usize, id1: usize) {
+        let mut v: Vec<usize> = Vec::new();
+        let v0_obj = self.vertices[id0].clone();
+        let v1_obj = self.vertices[id1].clone();
 
         /* Collect all the mappings we need to move */
-        for (name, obj) in self.vertices.iter() {
-            if *obj == v1_obj {
-                v.push((name.clone(), v0_obj.clone()));
+        for i in 0..self.vertices.len() {
+            if self.vertices[i] == v1_obj {
+                v.push(i);
             }
         }
 
         /* Insert them now that self.vertices is mutable */
-        for (name, obj) in v.iter() {
-            self.vertices.insert(name.clone(), obj.clone());
+        for id in v.iter() {
+            self.vertices[*id] = v0_obj.clone();
         }
     }
 
@@ -154,30 +172,44 @@ impl MapGraph {
      * one needs to be moved to the other.
      */
     fn insert_equality(&mut self, v0: String, v1: String) {
-        let m0 = self.vertices.get(&v0);
-        let m1 = self.vertices.get(&v1);
+        let m0 = self.name_to_id.get(&v0).copied();
+        let m1 = self.name_to_id.get(&v1).copied();
 
         match m0 {
-            Some(va) => {
+            Some(id0) => {
                 match m1 {
-                    Some(vb) => {
-                        self.move_equalities(va.clone(), vb.clone());
+                    Some(id1) => {
+                        self.move_equalities(id0, id1);
                     },
                     None => {
-                        self.vertices.insert(v1, va.clone());
+                        let id1 = self.id_to_name.len();
+                        self.name_to_id.insert(v1.clone(), id1);
+                        self.id_to_name.push(v1.clone());
+                        let va = self.vertices[id0].clone();
+                        self.vertices.push(va);
                     }
                 }
             },
             None => {
                 match m1 {
-                    Some(vb) => {
-                        self.vertices.insert(v0, vb.clone());
+                    Some(id1) => {
+                        let id0 = self.id_to_name.len();
+                        self.name_to_id.insert(v0.clone(), id0);
+                        self.id_to_name.push(v0.clone());
+                        let vb = self.vertices[id1].clone();
+                        self.vertices.push(vb);
                     },
                     None => {
                         let v: Rc<RefCell<Vertex>> = RefCell::new(
                             Vertex::new(v0.clone())).into();
-                        self.vertices.insert(v0, v.clone());
-                        self.vertices.insert(v1, v);
+                        let id0 = self.id_to_name.len();
+                        self.name_to_id.insert(v0.clone(), id0);
+                        self.id_to_name.push(v0.clone());
+                        self.vertices.push(v.clone());
+                        let id1 = self.id_to_name.len();
+                        self.name_to_id.insert(v1.clone(), id1);
+                        self.id_to_name.push(v1.clone());
+                        self.vertices.push(v);
                     }
                 }
             }
@@ -205,18 +237,20 @@ impl MapGraph {
             for s in book.shots.iter() {
                 let ((s0, s1), shot) = s;
                 let stat0 = format!("{}@{}", s0.name, book.prefix);
-                let v0 = graph.insert_vertex(&stat0);
+                let id0 = graph.insert_vertex(&stat0);
+                let v0 = graph.vertices[id0].clone();
                 let stat1 = format!("{}@{}", s1.name, book.prefix);
-                let v1 = graph.insert_vertex(&stat1);
+                let id1 = graph.insert_vertex(&stat1);
+                let v1 = &graph.vertices[id1];
 
                 let e1 = Edge {
-                    other: v1.clone(),
+                    other: id1,
                     distance: f64::from(shot.length)
                 };
                 v0.borrow_mut().edges.push(e1);
 
                 let e0 = Edge {
-                    other: v0.clone(),
+                    other: id0,
                     distance: f64::from(shot.length)
                 };
                 v1.borrow_mut().edges.push(e0);
@@ -227,60 +261,51 @@ impl MapGraph {
     }
 
     /*
-     * Return the shortest distance between the two vertices, and use a
-     * reusable set of helper datastructures in the process.
+     * Return the shortest distance between the two vertices using integer IDs
+     * in the hot path. Uses pre-allocated Vec for O(1) distance lookups.
      */
-    fn shortest_path_between_vertices_with_buffers(
+    fn shortest_path_between_ids(
         &self,
-        start_v: &Rc<RefCell<Vertex>>,
-        end_v: &Rc<RefCell<Vertex>>,
-        distances: &mut HashMap<String, f64>,
+        start_id: usize,
+        end_id: usize,
+        distances: &mut Vec<f64>,
         frontier: &mut BinaryHeap<VertexTracker>,
     ) -> f64 {
-        let start_name = start_v.borrow().name.clone();
-        let end_name = end_v.borrow().name.clone();
-
-        for distance in distances.values_mut() {
+        // Reset distances
+        for distance in distances.iter_mut() {
             *distance = Self::CANARY;
         }
-        distances.insert(start_name.clone(), 0.0);
+        distances[start_id] = 0.0;
 
         frontier.clear();
         frontier.push(VertexTracker {
-            name: start_name,
+            id: start_id,
             distance: 0.0,
         });
 
         while let Some(current) = frontier.pop() {
-            let known = *distances
-                .get(&current.name)
-                .expect("Missing distance for queued vertex");
+            let known = distances[current.id];
 
             // Skip stale entries that were superseded by a shorter path.
             if current.distance > known {
                 continue;
             }
 
-            if current.name == end_name {
+            if current.id == end_id {
                 return current.distance;
             }
 
-            let vertex = self
-                .vertices
-                .get(&current.name)
-                .expect("Couldn't find vertex by queued name");
+            let vertex = &self.vertices[current.id];
 
             for edge in vertex.borrow().edges.iter() {
-                let other_name = edge.other.borrow().name.clone();
+                let other_id = edge.other;
                 let new_distance = current.distance + edge.distance;
-                let other_known = *distances
-                    .get(&other_name)
-                    .expect("Missing distance for adjacent vertex");
+                let other_known = distances[other_id];
 
                 if new_distance < other_known {
-                    distances.insert(other_name.clone(), new_distance);
+                    distances[other_id] = new_distance;
                     frontier.push(VertexTracker {
-                        name: other_name,
+                        id: other_id,
                         distance: new_distance,
                     });
                 }
@@ -291,41 +316,26 @@ impl MapGraph {
     }
 
     /*
-     * Return the shortest distance between the two vertices
-     */
-    fn shortest_path_between_vertices(
-        &self,
-        start_v: &Rc<RefCell<Vertex>>,
-        end_v: &Rc<RefCell<Vertex>>,
-    ) -> f64 {
-        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
-        for name in self.vertices.keys() {
-            distances.insert(name.clone(), Self::CANARY);
-        }
-        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
-
-        self.shortest_path_between_vertices_with_buffers(
-            start_v,
-            end_v,
-            &mut distances,
-            &mut frontier,
-        )
-    }
-
-    /*
      * Return the shortest distance between the two named vertices
      */
     pub fn shortest_path(&self, start: &String, finish: &String) -> Result<f64, String> {
-        let start_v = match self.vertices.get(start) {
-            Some(vertex) => vertex,
+        let start_id = match self.name_to_id.get(start) {
+            Some(start_id) => start_id,
             None => return Err(format!("Unknown starting station: {}", start)),
         };
-        let end_v = match self.vertices.get(finish) {
-            Some(vertex) => vertex,
+        let end_id = match self.name_to_id.get(finish) {
+            Some(end_id) => end_id,
             None => return Err(format!("Unknown ending station: {}", finish)),
         };
 
-        Ok(self.shortest_path_between_vertices(start_v, end_v))
+        let mut distances: Vec<f64> = Vec::with_capacity(self.vertices.len());
+        for _ in 0..self.vertices.len() {
+            distances.push(Self::CANARY);
+        }
+        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+
+        Ok(self.shortest_path_between_ids(
+            *start_id, *end_id, &mut distances, &mut frontier))
     }
 
     /*
@@ -336,42 +346,34 @@ impl MapGraph {
         let mut longest_distance: f64 = 0.0;
         let mut longest_start = String::new();
         let mut longest_end = String::new();
-        let mut distances: HashMap<String, f64> = HashMap::with_capacity(self.vertices.len());
-        for name in self.vertices.keys() {
-            distances.insert(name.clone(), Self::CANARY);
-        }
+
+        // Pre-allocate reusable buffers for ID-based Dijkstra
+        let mut distances: Vec<f64> = vec![Self::CANARY; self.id_to_name.len()];
         let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
 
-        let candidates: Vec<(&String, &Rc<RefCell<Vertex>>)> = self
-            .vertices
-            .iter()
-            .filter(|(_, vertex)| !no_midpoints || vertex.borrow().edges.len() == 1)
-            .collect();
+        for start_id in 0..self.vertices.len() {
+            let v0 = &self.vertices[start_id];
+            if v0.borrow().edges.len() != 1 && no_midpoints {continue;}
 
-        for i in 0..candidates.len() {
-            let (start_name, v0) = candidates[i];
-            for j in (i + 1)..candidates.len() {
-                let (end_name, v1) = candidates[j];
+            for end_id in (start_id + 1)..self.vertices.len() {
+                let v1 = &self.vertices[end_id];
+                if v1.borrow().edges.len() != 1 && no_midpoints {continue;}
 
-                let distance = self.shortest_path_between_vertices_with_buffers(
-                    v0,
-                    v1,
+                let distance = self.shortest_path_between_ids(
+                    start_id,
+                    end_id,
                     &mut distances,
                     &mut frontier,
                 );
                 if distance > longest_distance {
                     longest_distance = distance;
-                    longest_start = start_name.clone();
-                    longest_end = end_name.clone();
+                    longest_start = self.id_to_name[start_id].clone();
+                    longest_end = self.id_to_name[end_id].clone();
                 } else if distance == Self::CANARY {
-                    println!("{} and {} are disconnected", start_name, end_name);
+                    println!("{} and {} are disconnected", self.id_to_name[start_id], self.id_to_name[end_id]);
                 }
             }
         }
-
-        //let end = SystemTime::now();
-        //let time_diff = end.duration_since(begin).unwrap();
-        //println!("Diameter took {:?}", time_diff);
 
         (longest_start, longest_end, longest_distance)
     }
