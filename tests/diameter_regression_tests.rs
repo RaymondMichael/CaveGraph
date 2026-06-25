@@ -21,7 +21,7 @@ fn test_diameter_regression_hmaze() {
     let mut cave = Cave::new();
     therion_reader::read_therion(&mut cave, &"".to_string(), &"data/HMaze.th".to_string());
 
-    let graph = MapGraph::cave_graph(&cave);
+    let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
     let (_, _, distance_with_midpoints) = graph.diameter(false);
     let (_, _, distance_no_midpoints) = graph.diameter(true);
 
@@ -46,7 +46,7 @@ fn test_diameter_regression_deep_lake() {
         &"data/Deep_Lake/deep_lake.th".to_string(),
     );
 
-    let graph = MapGraph::cave_graph(&cave);
+    let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
     let (_, _, distance_with_midpoints) = graph.diameter(false);
     let (_, _, distance_no_midpoints) = graph.diameter(true);
 
@@ -71,7 +71,7 @@ fn test_diameter_regression_walls_mcsvy() {
         &"MCSVY.wpj".to_string(),
     );
 
-    let graph = MapGraph::cave_graph(&cave);
+    let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
     let (_, _, distance_with_midpoints) = graph.diameter(false);
     let (_, _, distance_no_midpoints) = graph.diameter(true);
 

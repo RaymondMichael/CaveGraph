@@ -325,9 +325,13 @@ fn percentile_index(len: usize, p: f64) -> usize {
     rank.saturating_sub(1).min(len.saturating_sub(1))
 }
 
-fn summarize_ms(durations: &[Duration]) -> (u128, u128, u128, u128) {
-    let mut values: Vec<u128> = durations.iter().map(Duration::as_millis).collect();
-    values.sort_unstable();
+fn millis_f64(duration: &Duration) -> f64 {
+    duration.as_secs_f64() * 1000.0
+}
+
+fn summarize_ms(durations: &[Duration]) -> (f64, f64, f64, f64) {
+    let mut values: Vec<f64> = durations.iter().map(millis_f64).collect();
+    values.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let min = values[0];
     let max = values[values.len() - 1];
     let median = values[values.len() / 2];
@@ -348,10 +352,10 @@ fn append_csv_rows(
     seed: u64,
     no_midpoints: bool,
     durations: &[Duration],
-    median_ms: u128,
-    p95_ms: u128,
-    min_ms: u128,
-    max_ms: u128,
+    median_ms: f64,
+    p95_ms: f64,
+    min_ms: f64,
+    max_ms: f64,
 ) -> Result<(), String> {
     let needs_header = match std::fs::metadata(path) {
         Ok(meta) => meta.len() == 0,
@@ -384,7 +388,7 @@ fn append_csv_rows(
             seed,
             no_midpoints,
             idx,
-            d.as_millis(),
+            millis_f64(d),
             median_ms,
             p95_ms,
             min_ms,
@@ -410,7 +414,7 @@ fn run_case(case: Case, repeats: usize, seed: u64, no_midpoints: bool, csv: Opti
     let (median_ms, p95_ms, min_ms, max_ms) = summarize_ms(&durations);
 
     println!(
-        "topology={} V={} E={} seed={} no_midpoints={} repeats={} median_ms={} p95_ms={} min_ms={} max_ms={} diameter={} {} -> {}",
+        "topology={} V={} E={} seed={} no_midpoints={} repeats={} median_ms={:.3} p95_ms={:.3} min_ms={:.3} max_ms={:.3} diameter={} {} -> {}",
         case.topology.as_str(),
         case.vertices,
         case.edges,

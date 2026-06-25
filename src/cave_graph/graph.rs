@@ -1,8 +1,6 @@
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
-use std::rc::Rc;
 //use std::time::SystemTime;
 use super::cave::Cave;
 
@@ -12,26 +10,16 @@ struct Edge {
 }
 
 struct Vertex {
-    name: String,
     edges: Vec<Edge>
 }
 
 impl Vertex {
-    pub fn new(title: String) -> Vertex {
+    pub fn new() -> Vertex {
         Vertex {
-            name: title,
             edges: Vec::new()
         }
     }
 }
-
-impl PartialEq for Vertex {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for Vertex {}
 
 // Integer-ID based vertex tracker for hot-path Dijkstra
 struct VertexTracker {
@@ -62,8 +50,8 @@ impl PartialEq for VertexTracker {
 impl Eq for VertexTracker {}
 
 pub struct MapGraph {
-    //XXX duplicates the name
-    vertices: Vec<Rc<RefCell<Vertex>>>,
+    // ID-indexed vertex storage for hot-path traversal.
+    vertices: Vec<Vertex>,
     name_to_id: HashMap<String, usize>,
     id_to_name: Vec<String>,
 }
@@ -94,8 +82,7 @@ impl MapGraph {
                 self.name_to_id.insert(name.clone(), id);
                 self.id_to_name.push(name.clone());
 
-                let v: Rc<RefCell<Vertex>> = RefCell::new(Vertex::new(name.clone())).into();
-                self.vertices.push(v);
+                self.vertices.push(Vertex::new());
                 id
             }
         };
@@ -113,6 +100,20 @@ impl MapGraph {
     }
 
     /*
+     * Return mutable references to the two Vertexes with the passed IDs
+     */
+    fn vertex_pair_mut(vertices: &mut [Vertex], id0: usize, id1: usize) ->
+        (&mut Vertex, &mut Vertex) {
+        if id0 < id1 {
+            let (left, right) = vertices.split_at_mut(id1);
+            (&mut left[id0], &mut right[0])
+        } else {
+            let (left, right) = vertices.split_at_mut(id0);
+            (&mut right[0], &mut left[id1])
+        }
+    }
+
+    /*
      * Take an array of edge descriptions, turn them into edge objects that
      * reference the named vertex objects, and add them to the graph
      */
@@ -120,25 +121,26 @@ impl MapGraph {
         for i in 0..edges.len() {
             let (p0, p1, d) = edges[i];
 
-            let id0 = self.name_to_id.get(p0).
-                expect("Couldn't find the first vertex ID");
-            let id1 = self.name_to_id.get(p1).
-                expect("Couldn't find the second vertex ID");
-
-            let v0 = &self.vertices[*id0];
-            let v1 = &self.vertices[*id1];
+            let id0 = *self.name_to_id.get(p0)
+                .expect("Couldn't find the first vertex ID");
+            let id1 = *self.name_to_id.get(p1)
+                .expect("Couldn't find the second vertex ID");
 
             let e1 = Edge {
-                other: *id1,
+                other: id1,
                 distance: f64::from(d)
             };
-            v0.borrow_mut().edges.push(e1);
 
             let e0 = Edge {
-                other: *id0,
+                other: id0,
                 distance: f64::from(d)
             };
-            v1.borrow_mut().edges.push(e0);
+
+            assert_ne!(id0, id1, "Self-loop edge is not allowed: {}", p0);
+
+            let (v0, v1) = Self::vertex_pair_mut(&mut self.vertices, id0, id1);
+            v0.edges.push(e1);
+            v1.edges.push(e0);
         }
     }
 
@@ -147,20 +149,14 @@ impl MapGraph {
      * reference v0_obj instead
      */
     fn move_equalities(&mut self, id0: usize, id1: usize) {
-        let mut v: Vec<usize> = Vec::new();
-        let v0_obj = self.vertices[id0].clone();
-        let v1_obj = self.vertices[id1].clone();
-
-        /* Collect all the mappings we need to move */
-        for i in 0..self.vertices.len() {
-            if self.vertices[i] == v1_obj {
-                v.push(i);
-            }
+        if id0 == id1 {
+            return;
         }
 
-        /* Insert them now that self.vertices is mutable */
-        for id in v.iter() {
-            self.vertices[*id] = v0_obj.clone();
+        for id in self.name_to_id.values_mut() {
+            if *id == id1 {
+                *id = id0;
+            }
         }
     }
 
@@ -182,34 +178,21 @@ impl MapGraph {
                         self.move_equalities(id0, id1);
                     },
                     None => {
-                        let id1 = self.id_to_name.len();
-                        self.name_to_id.insert(v1.clone(), id1);
-                        self.id_to_name.push(v1.clone());
-                        let va = self.vertices[id0].clone();
-                        self.vertices.push(va);
+                        self.name_to_id.insert(v1, id0);
                     }
                 }
             },
             None => {
                 match m1 {
                     Some(id1) => {
-                        let id0 = self.id_to_name.len();
-                        self.name_to_id.insert(v0.clone(), id0);
-                        self.id_to_name.push(v0.clone());
-                        let vb = self.vertices[id1].clone();
-                        self.vertices.push(vb);
+                        self.name_to_id.insert(v0, id1);
                     },
                     None => {
-                        let v: Rc<RefCell<Vertex>> = RefCell::new(
-                            Vertex::new(v0.clone())).into();
                         let id0 = self.id_to_name.len();
                         self.name_to_id.insert(v0.clone(), id0);
+                        self.name_to_id.insert(v1, id0);
                         self.id_to_name.push(v0.clone());
-                        self.vertices.push(v.clone());
-                        let id1 = self.id_to_name.len();
-                        self.name_to_id.insert(v1.clone(), id1);
-                        self.id_to_name.push(v1.clone());
-                        self.vertices.push(v);
+                        self.vertices.push(Vertex::new());
                     }
                 }
             }
@@ -217,9 +200,43 @@ impl MapGraph {
     }
 
     /*
+     * This frees the memory of vertex objects and names that have been
+     * orphaned by the process of listing vertexes as equal
+     */
+    fn compact_vertices(&mut self) {
+        if self.vertices.is_empty() {
+            return;
+        }
+
+        let mut used: Vec<bool> = vec![false; self.vertices.len()];
+        for &id in self.name_to_id.values() {
+            used[id] = true;
+        }
+
+        let mut remap: Vec<usize> = vec![usize::MAX; self.vertices.len()];
+        let mut compacted_vertices: Vec<Vertex> = Vec::new();
+        let mut compacted_names: Vec<String> = Vec::new();
+
+        for old_id in 0..self.vertices.len() {
+            if used[old_id] {
+                remap[old_id] = compacted_vertices.len();
+                compacted_vertices.push(Vertex::new());
+                compacted_names.push(self.id_to_name[old_id].clone());
+            }
+        }
+
+        for id in self.name_to_id.values_mut() {
+            *id = remap[*id];
+        }
+
+        self.vertices = compacted_vertices;
+        self.id_to_name = compacted_names;
+    }
+
+    /*
      * Take a cave object and turn it into a graph we can analyze
      */
-    pub fn cave_graph(cave: &Cave) -> MapGraph {
+    pub fn cave_graph(cave: &Cave) -> Result<MapGraph, String> {
         let mut graph = MapGraph::new();
 
         /*
@@ -231,6 +248,7 @@ impl MapGraph {
             let v1 = eq.v1();
             graph.insert_equality(v0, v1);
         }
+        graph.compact_vertices();
 
         /* For each book for each shot, create an edge */
         for book in cave.books.iter() {
@@ -238,26 +256,33 @@ impl MapGraph {
                 let ((s0, s1), shot) = s;
                 let stat0 = format!("{}@{}", s0.name, book.prefix);
                 let id0 = graph.insert_vertex(&stat0);
-                let v0 = graph.vertices[id0].clone();
                 let stat1 = format!("{}@{}", s1.name, book.prefix);
                 let id1 = graph.insert_vertex(&stat1);
-                let v1 = &graph.vertices[id1];
+
+                if id0 == id1 {
+                    return Err(format!(
+                        "Self-loop edge detected while building graph: {}",
+                        stat0
+                    ));
+                }
 
                 let e1 = Edge {
                     other: id1,
                     distance: f64::from(shot.length)
                 };
-                v0.borrow_mut().edges.push(e1);
 
                 let e0 = Edge {
                     other: id0,
                     distance: f64::from(shot.length)
                 };
-                v1.borrow_mut().edges.push(e0);
+
+                let (v0, v1) = Self::vertex_pair_mut(&mut graph.vertices, id0, id1);
+                v0.edges.push(e1);
+                v1.edges.push(e0);
             }
         }
 
-        graph
+        Ok(graph)
     }
 
     /*
@@ -295,9 +320,7 @@ impl MapGraph {
                 return current.distance;
             }
 
-            let vertex = &self.vertices[current.id];
-
-            for edge in vertex.borrow().edges.iter() {
+            for edge in self.vertices[current.id].edges.iter() {
                 let other_id = edge.other;
                 let new_distance = current.distance + edge.distance;
                 let other_known = distances[other_id];
@@ -328,10 +351,7 @@ impl MapGraph {
             None => return Err(format!("Unknown ending station: {}", finish)),
         };
 
-        let mut distances: Vec<f64> = Vec::with_capacity(self.vertices.len());
-        for _ in 0..self.vertices.len() {
-            distances.push(Self::CANARY);
-        }
+        let mut distances: Vec<f64> = vec![Self::CANARY; self.vertices.len()];
         let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
 
         Ok(self.shortest_path_between_ids(
@@ -348,16 +368,18 @@ impl MapGraph {
         let mut longest_end = String::new();
 
         // Pre-allocate reusable buffers for ID-based Dijkstra
-        let mut distances: Vec<f64> = vec![Self::CANARY; self.id_to_name.len()];
+        let mut distances: Vec<f64> = vec![Self::CANARY; self.vertices.len()];
         let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
 
         for start_id in 0..self.vertices.len() {
-            let v0 = &self.vertices[start_id];
-            if v0.borrow().edges.len() != 1 && no_midpoints {continue;}
+            if no_midpoints && self.vertices[start_id].edges.len() != 1 {
+                continue;
+            }
 
             for end_id in (start_id + 1)..self.vertices.len() {
-                let v1 = &self.vertices[end_id];
-                if v1.borrow().edges.len() != 1 && no_midpoints {continue;}
+                if no_midpoints && self.vertices[end_id].edges.len() != 1 {
+                    continue;
+                }
 
                 let distance = self.shortest_path_between_ids(
                     start_id,
@@ -391,7 +413,7 @@ mod tests {
         let file = "data/HMaze.th".to_string();
         super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
 
-        let graph = MapGraph::cave_graph(&cave);
+        let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         let result = graph.shortest_path(&"UNKNOWN@Test".to_string(), &"M1@HMaze".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown starting station"));
@@ -404,7 +426,7 @@ mod tests {
         let file = "data/HMaze.th".to_string();
         super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
 
-        let graph = MapGraph::cave_graph(&cave);
+        let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         let result = graph.shortest_path(&"M1@HMaze".to_string(), &"UNKNOWN@Test".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown ending station"));
@@ -417,7 +439,7 @@ mod tests {
         let file = "data/HMaze.th".to_string();
         super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
 
-        let graph = MapGraph::cave_graph(&cave);
+        let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         let result = graph.shortest_path(&"M1@HMaze".to_string(), &"M2@HMaze".to_string());
         assert!(result.is_ok(), "Valid stations should return Ok");
     }
@@ -429,7 +451,7 @@ mod tests {
         let file = "data/HMaze.th".to_string();
         super::super::cave::therion_reader::read_therion(&mut cave, &dir, &file);
 
-        let graph = MapGraph::cave_graph(&cave);
+        let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         assert!(!graph.vertices.is_empty(), "Graph should have vertices");
     }
 }

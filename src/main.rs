@@ -122,7 +122,13 @@ fn main() {
     }
 
     // Create graph from cave
-    let graph = MapGraph::cave_graph(&cave);
+    let graph = match MapGraph::cave_graph(&cave) {
+        Ok(graph) => graph,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            process::exit(1);
+        }
+    };
 
     // Print cave details if requested
     if config.print_cave {
