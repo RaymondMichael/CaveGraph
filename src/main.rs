@@ -5,6 +5,8 @@ use std::env;
 use std::path::Path;
 use std::process;
 
+const HELP_MESSAGE: &str = "Usage: cavegraph <file.th|file.wpj> [options]\n\nOptions:\n  --help, -h            Show this help message\n  --diameter            Calculate graph diameter\n  --path <s1> <s2>      Calculate shortest path between two stations\n  --print               Print parsed cave structure\n  --no-midpoints        Ignore midpoint stations in diameter calculation\n  --show-vertex-count   Show number of vertices on reported path\n  --show-path           Print full station path";
+
 struct Config {
     file_path: String,
     calculate_diameter: bool,
@@ -15,11 +17,15 @@ struct Config {
     show_path: bool,
 }
 
-fn parse_arguments() -> Result<Config, String> {
+fn parse_arguments() -> Result<Option<Config>, String> {
     let args: Vec<String> = env::args().collect();
 
+    if args.len() == 2 && (args[1] == "--help" || args[1] == "-h") {
+        return Ok(None);
+    }
+
     if args.len() < 2 {
-        return Err("Usage: cavegraph <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print] [--show-vertex-count] [--show-path]".to_string());
+        return Err(HELP_MESSAGE.to_string());
     }
 
     let file_path = args[1].clone();
@@ -49,6 +55,9 @@ fn parse_arguments() -> Result<Config, String> {
     let mut i = 2;
     while i < args.len() {
         match args[i].as_str() {
+            "--help" | "-h" => {
+                return Ok(None);
+            }
             "--diameter" => {
                 calculate_diameter = true;
                 i += 1;
@@ -82,7 +91,7 @@ fn parse_arguments() -> Result<Config, String> {
         }
     }
 
-    Ok(Config {
+    Ok(Some(Config {
         file_path,
         calculate_diameter,
         shortest_path_stations,
@@ -90,7 +99,7 @@ fn parse_arguments() -> Result<Config, String> {
         no_midpoints,
         show_vertex_count,
         show_path,
-    })
+    }))
 }
 
 fn print_path_details(path_result: &cavegraph::cave_graph::graph::PathResult, show_vertex_count: bool, show_path: bool) {
@@ -105,7 +114,11 @@ fn print_path_details(path_result: &cavegraph::cave_graph::graph::PathResult, sh
 
 fn main() {
     let config = match parse_arguments() {
-        Ok(cfg) => cfg,
+        Ok(Some(cfg)) => cfg,
+        Ok(None) => {
+            println!("{}", HELP_MESSAGE);
+            return;
+        }
         Err(err) => {
             eprintln!("{}", err);
             process::exit(1);

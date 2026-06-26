@@ -158,6 +158,36 @@ fn test_no_arguments_shows_usage() {
 }
 
 #[test]
+fn test_help_flag_prints_help_message() {
+    let (code, stdout, stderr) = run_cavegraph(&["--help"]);
+
+    assert_eq!(code, 0, "Should exit successfully");
+    assert!(
+        !stderr.contains("Error:"),
+        "Should not print an error for --help. stderr was: {}",
+        stderr
+    );
+    assert!(stdout.contains("Usage: cavegraph"), "Should print usage header");
+    assert!(stdout.contains("--diameter"), "Should list diameter option");
+    assert!(stdout.contains("--path <s1> <s2>"), "Should list path option");
+    assert!(stdout.contains("--print"), "Should list print option");
+    assert!(stdout.contains("--no-midpoints"), "Should list no-midpoints option");
+    assert!(
+        stdout.contains("--show-vertex-count"),
+        "Should list vertex count option"
+    );
+    assert!(stdout.contains("--show-path"), "Should list show-path option");
+}
+
+#[test]
+fn test_short_help_flag_prints_help_message() {
+    let (code, stdout, _stderr) = run_cavegraph(&["-h"]);
+
+    assert_eq!(code, 0, "Should exit successfully");
+    assert!(stdout.contains("Usage: cavegraph"), "Should print usage header");
+}
+
+#[test]
 fn test_walls_project_diameter() {
     let (code, stdout, _stderr) = run_cavegraph(&["data/Walls/MCSVY.wpj", "--diameter"]);
 
