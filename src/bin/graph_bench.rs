@@ -404,7 +404,7 @@ fn run_case(case: Case, repeats: usize, seed: u64, no_midpoints: bool, csv: Opti
     let graph = build_case(case, seed);
 
     let mut durations = Vec::with_capacity(repeats);
-    let mut last_result = (String::new(), String::new(), 0.0_f64);
+    let mut last_result = graph.diameter(no_midpoints);
     for _ in 0..repeats {
         let start = Instant::now();
         last_result = graph.diameter(no_midpoints);
@@ -425,9 +425,9 @@ fn run_case(case: Case, repeats: usize, seed: u64, no_midpoints: bool, csv: Opti
         p95_ms,
         min_ms,
         max_ms,
-        last_result.2,
-        last_result.0,
-        last_result.1
+        last_result.distance,
+        last_result.start,
+        last_result.end
     );
 
     if let Some(path) = csv {

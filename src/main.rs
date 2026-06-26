@@ -11,13 +11,15 @@ struct Config {
     shortest_path_stations: Option<(String, String)>,
     print_cave: bool,
     no_midpoints: bool,
+    show_vertex_count: bool,
+    show_path: bool,
 }
 
 fn parse_arguments() -> Result<Config, String> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        return Err("Usage: cavegraph <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print]".to_string());
+        return Err("Usage: cavegraph <file.th|file.wpj> [--diameter] [--no-midpoints] [--path station1 station2] [--print] [--show-vertex-count] [--show-path]".to_string());
     }
 
     let file_path = args[1].clone();
@@ -41,6 +43,8 @@ fn parse_arguments() -> Result<Config, String> {
     let mut shortest_path_stations: Option<(String, String)> = None;
     let mut print_cave = false;
     let mut no_midpoints = false;
+    let mut show_vertex_count = false;
+    let mut show_path = false;
 
     let mut i = 2;
     while i < args.len() {
@@ -64,6 +68,14 @@ fn parse_arguments() -> Result<Config, String> {
                 no_midpoints = true;
                 i += 1;
             }
+            "--show-vertex-count" => {
+                show_vertex_count = true;
+                i += 1;
+            }
+            "--show-path" => {
+                show_path = true;
+                i += 1;
+            }
             _ => {
                 return Err(format!("Error: Unknown option: {}", args[i]));
             }
@@ -76,7 +88,19 @@ fn parse_arguments() -> Result<Config, String> {
         shortest_path_stations,
         print_cave,
         no_midpoints,
+        show_vertex_count,
+        show_path,
     })
+}
+
+fn print_path_details(path_result: &cavegraph::cave_graph::graph::PathResult, show_vertex_count: bool, show_path: bool) {
+    if show_vertex_count {
+        println!("Vertices on path: {}", path_result.path.len());
+    }
+
+    if show_path {
+        println!("Path: {}", path_result.path.join(" -> "));
+    }
 }
 
 fn main() {
@@ -137,19 +161,26 @@ fn main() {
 
     // Calculate and output shortest path if requested
     if let Some((station1, station2)) = config.shortest_path_stations {
-        let distance = match graph.shortest_path(&station1, &station2) {
-            Ok(distance) => distance,
+        let path_result = match graph.shortest_path(&station1, &station2) {
+            Ok(path_result) => path_result,
             Err(err) => {
                 eprintln!("Error: {}", err);
                 process::exit(1);
             }
         };
-        println!("Shortest distance is {}", distance);
+        println!("Shortest distance is {}", path_result.distance);
+        print_path_details(&path_result, config.show_vertex_count, config.show_path);
     }
 
     // Calculate and output diameter if requested
     if config.calculate_diameter {
-        let (start, end, distance) = graph.diameter(config.no_midpoints);
-        println!("Graph diameter is {} between stations {} and {}", distance, start, end);
+        let path_result = graph.diameter(config.no_midpoints);
+        println!(
+            "Graph diameter is {} between stations {} and {}",
+            path_result.distance,
+            path_result.start,
+            path_result.end
+        );
+        print_path_details(&path_result, config.show_vertex_count, config.show_path);
     }
 }

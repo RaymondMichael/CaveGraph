@@ -49,6 +49,14 @@ impl PartialEq for VertexTracker {
 
 impl Eq for VertexTracker {}
 
+#[derive(Debug)]
+pub struct PathResult {
+    pub start: String,
+    pub end: String,
+    pub distance: f64,
+    pub path: Vec<String>,
+}
+
 pub struct MapGraph {
     // ID-indexed vertex storage for hot-path traversal.
     vertices: Vec<Vertex>,
@@ -294,11 +302,15 @@ impl MapGraph {
         start_id: usize,
         end_id: usize,
         distances: &mut Vec<f64>,
+        predecessors: &mut Vec<Option<usize>>,
         frontier: &mut BinaryHeap<VertexTracker>,
     ) -> f64 {
         // Reset distances
         for distance in distances.iter_mut() {
             *distance = Self::CANARY;
+        }
+        for predecessor in predecessors.iter_mut() {
+            *predecessor = None;
         }
         distances[start_id] = 0.0;
 
@@ -327,6 +339,7 @@ impl MapGraph {
 
                 if new_distance < other_known {
                     distances[other_id] = new_distance;
+                    predecessors[other_id] = Some(current.id);
                     frontier.push(VertexTracker {
                         id: other_id,
                         distance: new_distance,
@@ -338,10 +351,71 @@ impl MapGraph {
         Self::CANARY
     }
 
+    fn reconstruct_path_ids(
+        &self,
+        start_id: usize,
+        end_id: usize,
+        predecessors: &[Option<usize>],
+    ) -> Vec<usize> {
+        let mut path: Vec<usize> = Vec::new();
+        let mut current = end_id;
+        path.push(current);
+
+        while current != start_id {
+            let predecessor = match predecessors[current] {
+                Some(predecessor) => predecessor,
+                None => return Vec::new(),
+            };
+            current = predecessor;
+            path.push(current);
+        }
+
+        path.reverse();
+        path
+    }
+
+    fn shortest_path_details_between_ids(
+        &self,
+        start_id: usize,
+        end_id: usize,
+        distances: &mut Vec<f64>,
+        predecessors: &mut Vec<Option<usize>>,
+        frontier: &mut BinaryHeap<VertexTracker>,
+    ) -> Option<PathResult> {
+        let distance = self.shortest_path_between_ids(
+            start_id,
+            end_id,
+            distances,
+            predecessors,
+            frontier,
+        );
+
+        if distance == Self::CANARY {
+            return None;
+        }
+
+        let path_ids = self.reconstruct_path_ids(start_id, end_id, predecessors);
+        if path_ids.is_empty() {
+            return None;
+        }
+
+        let path: Vec<String> = path_ids
+            .iter()
+            .map(|id| self.id_to_name[*id].clone())
+            .collect();
+
+        Some(PathResult {
+            start: self.id_to_name[start_id].clone(),
+            end: self.id_to_name[end_id].clone(),
+            distance,
+            path,
+        })
+    }
+
     /*
      * Return the shortest distance between the two named vertices
      */
-    pub fn shortest_path(&self, start: &String, finish: &String) -> Result<f64, String> {
+    pub fn shortest_path(&self, start: &String, finish: &String) -> Result<PathResult, String> {
         let start_id = match self.name_to_id.get(start) {
             Some(start_id) => start_id,
             None => return Err(format!("Unknown starting station: {}", start)),
@@ -352,23 +426,41 @@ impl MapGraph {
         };
 
         let mut distances: Vec<f64> = vec![Self::CANARY; self.vertices.len()];
+        let mut predecessors: Vec<Option<usize>> = vec![None; self.vertices.len()];
         let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
 
-        Ok(self.shortest_path_between_ids(
-            *start_id, *end_id, &mut distances, &mut frontier))
+        match self.shortest_path_details_between_ids(
+            *start_id,
+            *end_id,
+            &mut distances,
+            &mut predecessors,
+            &mut frontier,
+        ) {
+            Some(result) => Ok(result),
+            None => Err(format!("No path found between {} and {}", start, finish)),
+        }
+    }
+
+    fn empty_path_result() -> PathResult {
+        PathResult {
+            start: String::new(),
+            end: String::new(),
+            distance: 0.0,
+            path: Vec::new(),
+        }
     }
 
     /*
      * Return the two vertices that are the furthest apart from each other,
      * and the distance between them
      */
-    pub fn diameter(&self, no_midpoints: bool) -> (String, String, f64) {
+    pub fn diameter(&self, no_midpoints: bool) -> PathResult {
         let mut longest_distance: f64 = 0.0;
-        let mut longest_start = String::new();
-        let mut longest_end = String::new();
+        let mut longest_pair: Option<(usize, usize)> = None;
 
         // Pre-allocate reusable buffers for ID-based Dijkstra
         let mut distances: Vec<f64> = vec![Self::CANARY; self.vertices.len()];
+        let mut predecessors: Vec<Option<usize>> = vec![None; self.vertices.len()];
         let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
 
         for start_id in 0..self.vertices.len() {
@@ -385,19 +477,33 @@ impl MapGraph {
                     start_id,
                     end_id,
                     &mut distances,
+                    &mut predecessors,
                     &mut frontier,
                 );
                 if distance > longest_distance {
                     longest_distance = distance;
-                    longest_start = self.id_to_name[start_id].clone();
-                    longest_end = self.id_to_name[end_id].clone();
+                    longest_pair = Some((start_id, end_id));
                 } else if distance == Self::CANARY {
                     println!("{} and {} are disconnected", self.id_to_name[start_id], self.id_to_name[end_id]);
                 }
             }
         }
 
-        (longest_start, longest_end, longest_distance)
+        let (start_id, end_id) = match longest_pair {
+            Some(pair) => pair,
+            None => return Self::empty_path_result(),
+        };
+
+        match self.shortest_path_details_between_ids(
+            start_id,
+            end_id,
+            &mut distances,
+            &mut predecessors,
+            &mut frontier,
+        ) {
+            Some(result) => result,
+            None => Self::empty_path_result(),
+        }
     }
 }
 
@@ -442,6 +548,10 @@ mod tests {
         let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         let result = graph.shortest_path(&"M1@HMaze".to_string(), &"M2@HMaze".to_string());
         assert!(result.is_ok(), "Valid stations should return Ok");
+        let result = result.expect("Expected path details");
+        assert_eq!(result.start, "M1@HMaze");
+        assert_eq!(result.end, "M2@HMaze");
+        assert_eq!(result.path.len(), 2);
     }
 
     #[test]
@@ -453,5 +563,43 @@ mod tests {
 
         let graph = MapGraph::cave_graph(&cave).expect("Failed to build cave graph");
         assert!(!graph.vertices.is_empty(), "Graph should have vertices");
+    }
+
+    #[test]
+    fn test_shortest_path_details_between_ids_reconstructs_path() {
+        let mut graph = MapGraph::new();
+        graph.insert_vertices(&["A", "B", "C"]);
+        graph.insert_edges(&[("A", "B", 1.0), ("B", "C", 1.0)]);
+
+        let mut distances: Vec<f64> = vec![MapGraph::CANARY; graph.vertices.len()];
+        let mut predecessors: Vec<Option<usize>> = vec![None; graph.vertices.len()];
+        let mut frontier: BinaryHeap<VertexTracker> = BinaryHeap::new();
+
+        let result = graph.shortest_path_details_between_ids(
+            0,
+            2,
+            &mut distances,
+            &mut predecessors,
+            &mut frontier,
+        ).expect("Expected a path result");
+
+        assert_eq!(result.start, "A");
+        assert_eq!(result.end, "C");
+        assert_eq!(result.distance, 2.0);
+        assert_eq!(result.path, vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_diameter_reconstructs_path() {
+        let mut graph = MapGraph::new();
+        graph.insert_vertices(&["A", "B", "C"]);
+        graph.insert_edges(&[("A", "B", 1.0), ("B", "C", 1.0)]);
+
+        let result = graph.diameter(false);
+
+        assert_eq!(result.start, "A");
+        assert_eq!(result.end, "C");
+        assert_eq!(result.distance, 2.0);
+        assert_eq!(result.path, vec!["A", "B", "C"]);
     }
 }

@@ -41,6 +41,25 @@ fn test_path_flag_with_valid_stations() {
 }
 
 #[test]
+fn test_path_flag_can_show_count_and_vertices() {
+    let (code, stdout, _stderr) = run_cavegraph(&[
+        "data/HMaze.th",
+        "--path",
+        "M9@HMaze",
+        "M16@HMaze",
+        "--show-vertex-count",
+        "--show-path",
+    ]);
+
+    assert_eq!(code, 0, "Should exit successfully");
+    assert!(stdout.contains("Shortest distance is"), "Should output path distance");
+    assert!(stdout.contains("Vertices on path:"), "Should output inclusive vertex count");
+    assert!(stdout.contains("Path:"), "Should output ordered path");
+    assert!(stdout.contains("M9@HMaze"), "Should include starting vertex in the path output");
+    assert!(stdout.contains("M16@HMaze"), "Should include ending vertex in the path output");
+}
+
+#[test]
 fn test_path_flag_with_unknown_start_station() {
     let (code, _stdout, stderr) =
         run_cavegraph(&["data/HMaze.th", "--path", "UNKNOWN@HMaze", "M16@HMaze"]);
@@ -70,6 +89,23 @@ fn test_no_midpoints_flag_with_diameter() {
 
     assert_eq!(code, 0, "Should exit successfully");
     assert!(stdout.contains("Graph diameter is"), "Should output diameter result");
+}
+
+#[test]
+fn test_diameter_flag_can_show_count_and_vertices() {
+    let (code, stdout, _stderr) = run_cavegraph(&[
+        "data/HMaze.th",
+        "--diameter",
+        "--show-vertex-count",
+        "--show-path",
+    ]);
+
+    assert_eq!(code, 0, "Should exit successfully");
+    assert!(stdout.contains("Graph diameter is"), "Should output diameter result");
+    assert!(stdout.contains("Vertices on path:"), "Should output inclusive vertex count");
+    assert!(stdout.contains("Path:"), "Should output ordered path");
+    assert!(stdout.contains("M9@HMaze"), "Should include one diameter endpoint");
+    assert!(stdout.contains("M16@HMaze"), "Should include the other diameter endpoint");
 }
 
 #[test]
