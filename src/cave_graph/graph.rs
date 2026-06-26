@@ -505,6 +505,21 @@ impl MapGraph {
             None => Self::empty_path_result(),
         }
     }
+
+    pub fn vertex_count(&self) -> usize {
+        self.vertices.len()
+    }
+
+    pub fn total_edge_length(&self) -> f64 {
+        let directed_total: f64 = self
+            .vertices
+            .iter()
+            .flat_map(|vertex| vertex.edges.iter())
+            .map(|edge| edge.distance)
+            .sum();
+
+        directed_total / 2.0
+    }
 }
 
 #[cfg(test)]
@@ -601,5 +616,15 @@ mod tests {
         assert_eq!(result.end, "C");
         assert_eq!(result.distance, 2.0);
         assert_eq!(result.path, vec!["A", "B", "C"]);
+    }
+
+    #[test]
+    fn test_graph_stats_report_expected_values() {
+        let mut graph = MapGraph::new();
+        graph.insert_vertices(&["A", "B", "C"]);
+        graph.insert_edges(&[("A", "B", 1.5), ("B", "C", 2.5)]);
+
+        assert_eq!(graph.vertex_count(), 3);
+        assert_eq!(graph.total_edge_length(), 4.0);
     }
 }

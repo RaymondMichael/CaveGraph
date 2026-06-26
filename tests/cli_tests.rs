@@ -188,6 +188,32 @@ fn test_short_help_flag_prints_help_message() {
 }
 
 #[test]
+fn test_stats_flag_outputs_edge_length_and_vertex_count() {
+    let (code, stdout, _stderr) = run_cavegraph(&["data/HMaze.th", "--stats"]);
+
+    assert_eq!(code, 0, "Should exit successfully");
+    assert!(stdout.contains("Total edge length:"), "Should print total edge length");
+    assert!(stdout.contains("Total vertices:"), "Should print total vertex count");
+
+    let mut edge_length: Option<f64> = None;
+    let mut vertex_count: Option<usize> = None;
+
+    for line in stdout.lines() {
+        if let Some(value) = line.strip_prefix("Total edge length: ") {
+            edge_length = value.trim().parse::<f64>().ok();
+        }
+        if let Some(value) = line.strip_prefix("Total vertices: ") {
+            vertex_count = value.trim().parse::<usize>().ok();
+        }
+    }
+
+    assert!(edge_length.is_some(), "Edge length value should be parseable");
+    assert!(vertex_count.is_some(), "Vertex count value should be parseable");
+    assert!(edge_length.unwrap() > 0.0, "Edge length should be positive");
+    assert!(vertex_count.unwrap() > 0, "Vertex count should be positive");
+}
+
+#[test]
 fn test_walls_project_diameter() {
     let (code, stdout, _stderr) = run_cavegraph(&["data/Walls/MCSVY.wpj", "--diameter"]);
 
